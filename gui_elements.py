@@ -81,6 +81,9 @@ class RenderQueue:
     def clear(self):
         self.queue = []
 
+    def add(self, component):
+        self.queue.append(component)
+
     def add_pane(self, color, x, y, w, h):
         render_component = ("pane", [color, (w, h), (x, y)])
         self.queue.append(render_component)
@@ -98,6 +101,13 @@ class RenderQueue:
             render_component = ("rect", [color, (x, y, w, h), b])
         else:
             render_component = ("rect", [color, (x, y, w, h)])
+        self.queue.append(render_component)
+
+    def add_circle(self, color, center, radius, w=None):
+        if w is not None:
+            render_component = ("circle", [color, center, radius, w])
+        else:
+            render_component = ("circle", [color, center, radius])
         self.queue.append(render_component)
 
     def add_triangle(self, color, points, b=None):

@@ -35,7 +35,7 @@ class KeyHandler:
         self.tracker.load_song()
 
     def handle_new(self):
-        self.tracker.new_project()
+        self.tracker.new_song()
 
     def handle_duplicate(self):
         self.tracker.duplicate_selection()

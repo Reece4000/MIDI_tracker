@@ -29,9 +29,7 @@ tr_offset_x = 29
 start_y = 0
 pattern_line_len = -5 + (col_w + 18) * track_count
 
-play_x, play_y = 15, 15
-
-
+play_x, play_y = 100, 15
 
 midi_label_offset = int(col_w * 0.69)
 song_playhead_offset = int(col_w * 1.6)

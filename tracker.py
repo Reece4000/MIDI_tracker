@@ -3,6 +3,7 @@ import pygame.midi
 from sequencer_components import *
 from gui_elements import *
 import constants as cfg
+import json
 import csv
 import pickle
 from constants import *
@@ -50,6 +51,15 @@ class Tracker:
         self.clipboard = []
         self.page = 2  # 0 = song, 1 = phrase, 2 = pattern
         self.render_queue = RenderQueue()
+        self.cycles = 0
+
+    def reset(self):
+        self.sequencer.reset()
+        self.cursor_x, self.cursor_y = 0, 0
+        self.cursor_x_span, self.cursor_y_span = 0, 0
+        self.song_cursor, self.song_cursor_span = 0, 0
+        self.phrase_cursor, self.phrase_cursor_span = 0, 0
+        self.page = 2
 
     def play(self, init=False):
         self.sequencer.is_playing = not self.sequencer.is_playing  # Toggle play/pause
@@ -149,56 +159,52 @@ class Tracker:
         if save_name is None:
             return
 
-        for pattern in self.sequencer.patterns.items():
-            print(pattern.num, pattern.length, pattern.bpm, pattern.lpb)
+        serialised_sequencer_data = self.sequencer.json_serialize()
+        # save json dump to file
+        if not save_name.endswith(".json"):
+            save_name += ".json"
 
-        if not save_name.endswith(".pkl"):
-            save_name += ".pkl"
+        with open(save_name, 'w') as file:
+            json.dump(serialised_sequencer_data, file)
 
-        try:
-            with open(save_name, 'wb') as file:
-                pickle.dump(self.sequencer, file)
-            print("Project saved.")
-            return True
-        except Exception as e:
-            print(f"Error saving project: {e}")
-            return False
+        print("Song saved successfully!")
 
     def load_song(self):
+        # check whether patterns is empty, if not ask user if they want to save
+        self.render_queue.clear()
+
         font = pygame.font.SysFont('Consolas', 14, bold=True)
-        userinput = UserInput(prompt="Please enter a save name, then press Enter")
+        userinput = UserInput(prompt="Please enter the project name, then press Enter")
         userinput.get_text(self.screen, font, cfg.BG_TASKPANE)
         load_name = userinput.inputted_text
 
         if load_name is None:
             return
 
-        if not load_name.endswith(".pkl"):
-            load_name += ".pkl"
+        if not load_name.endswith(".json"):
+            load_name += ".json"
+        self.sequencer.is_playing = False
+        self.cursor_x, self.cursor_y = 0, 0
+        self.cursor_x_span, self.cursor_y_span = 0, 0
 
-        try:
-            with open(load_name, 'rb') as file:
-                self.sequencer = pickle.load(file)
-                self.phrase_cursor = 0
-                self.song_cursor = 0
-            print("Project loaded successfully.")
-            return True
-        except FileNotFoundError:
-            print("Error: File does not exist.")
-            return False
-        except Exception as e:
-            print(f"Error loading project: {e}")
-            return False
+        with open(load_name, 'r') as file:
+            serialised_sequencer_data = json.load(file)
+            self.sequencer.load_from_json(serialised_sequencer_data)
 
-    def new_project(self):
+        self.page, self.cursor_x, self.cursor_y = 2, 0, 0
+
+        print("Song loaded successfully!")
+
+    def new_song(self):
+        self.render_queue.clear()
         font = pygame.font.SysFont('Consolas', 14, bold=True)
-        userinput = UserInput(prompt="Do you want to save the current project first? Press Enter to save, Esc to continue without saving.")
+        userinput = UserInput(prompt="Do you want to save the current project first? (Y/N)")
         userinput.get_text(self.screen, font, cfg.BG_TASKPANE)
         response = userinput.inputted_text
-        if response == "":
+        if response.lower() == "y":
             self.save_song()
 
-        self.sequencer = Sequencer(64, 1024, 8)
+        self.reset()
 
     def insert(self, opt):
         if opt == 'pattern':
@@ -327,6 +333,10 @@ class Tracker:
                 self.cursor_x_span += self.cursor_x - prev_x
                 self.cursor_y_span += self.cursor_y - prev_y
 
+            if self.sequencer.is_playing and self.sequencer.follow_playhead:
+                self.sequencer.pattern_playhead_pos = self.cursor_y
+                self.play_notes()
+
             if not expand_selection:
                 self.cursor_x_span, self.cursor_y_span = 0, 0
 
@@ -341,6 +351,7 @@ class Tracker:
         elif opt == 'up':
             if self.cursor_y > 0:
                 self.cursor_y -= 1
+                delta_y -= 1
                 track = self.sequencer.cursor_pattern.tracks[self.cursor_x]
                 while track.steps[self.cursor_y].note is None:
                     if self.cursor_y == 0:
@@ -349,7 +360,7 @@ class Tracker:
                     self.cursor_y -= 1
         elif opt == 'down':
             if self.cursor_y < self.sequencer.cursor_pattern.length - 1:
-                self.cursor_y += 1
+                self.cursor_y, delta_y = self.cursor_y + 1, 1
                 track = self.sequencer.cursor_pattern.tracks[self.cursor_x]
                 while track.steps[self.cursor_y].note is None:
                     if self.cursor_y == self.sequencer.cursor_pattern.length - 1:
@@ -439,6 +450,9 @@ class Tracker:
         cursor_phrase_num = self.sequencer.song_steps[self.song_cursor]
         cursor_pattern_num = self.sequencer.phrases[cursor_phrase_num][self.phrase_cursor]
 
+        if cursor_pattern_num is None:
+            return
+
         curr_length, min_length, max_length = self.sequencer.patterns[cursor_pattern_num].length, 1, 128
         new_length = curr_length + increment
         if new_length < min_length:
@@ -458,6 +472,9 @@ class Tracker:
         cursor_phrase_num = self.sequencer.song_steps[self.song_cursor]
         cursor_pattern_num = self.sequencer.phrases[cursor_phrase_num][self.phrase_cursor]
 
+        if cursor_pattern_num is None:
+            return
+
         curr_lpb, min_lpb, max_lpb = self.sequencer.patterns[cursor_pattern_num].lpb, 2, 32
         new_lpb = curr_lpb + increment
         if new_lpb < min_lpb:
@@ -472,6 +489,9 @@ class Tracker:
     def adjust_bpm(self, increment):
         cursor_phrase_num = self.sequencer.song_steps[self.song_cursor]
         cursor_pattern_num = self.sequencer.phrases[cursor_phrase_num][self.phrase_cursor]
+
+        if cursor_pattern_num is None:
+            return
 
         curr_bpm, min_bpm, max_bpm = self.sequencer.patterns[cursor_pattern_num].bpm, 15, 9999
         new_bpm = curr_bpm + increment
@@ -508,7 +528,6 @@ class Tracker:
             for step_index, step in enumerate(track.steps):
 
                 row_y = (step_index * cfg.row_h) + (self.center_y - (self.cursor_y * cfg.row_h))
-
                 # don't draw if outside of window
                 if 75 < row_y < self.win_height:
                     if step_index > self.sequencer.cursor_pattern.length - 1:
@@ -528,15 +547,25 @@ class Tracker:
                             self.render_queue.add_line(line_bg_color, (cfg.start_x, row_y + 9),
                                                        (cfg.pattern_line_len, row_y + 9), cfg.row_h)
 
+                        # row cursor
+                        row_label_col = (255, 255, 255)
+                        if step_index == self.cursor_y and self.sequencer.cursor_pattern is not None:
+                            self.render_queue.add_rect(cfg.CURSOR_COLOR if self.page == 2 else cfg.CURSOR_COLOR_ALT,
+                                                       cfg.start_x, row_y+1, 22, cfg.row_h-1)
+                            row_label_col = (0, 0, 0)
+
                         # row label
-                        self.render_queue.add_text("tracker_row_label_font", (255, 255, 255), f"{step_index:02}",
-                                                   cfg.start_x + 3, row_y + 7)
+                        self.render_queue.add_text("tracker_row_label_font", row_label_col,
+                                                   f"{step_index:02}", cfg.start_x + 3, row_y + 2)
 
                     # step_text
-                    x_offset, step_x, f = 38, cfg.start_x + (track_index * cfg.col_w), "tracker_pattern_font"
+                    x_offset, step_x = 42, cfg.start_x + (track_index * cfg.col_w)
+                    i = 0
+                    f = "tracker_font"
                     for component, color in step.components():
-                        self.render_queue.add_text(f, color, component, step_x + x_offset, row_y + 5)
-                        x_offset += len(component) * (cfg.col_w // 9)
+                        self.render_queue.add_text(f, color, component, step_x + x_offset, row_y + 2)
+                        x_offset += 3 + len(component) * (cfg.col_w // 11)
+                        i += 1
         return
 
     def render_queue_add_timeline(self):
@@ -563,10 +592,10 @@ class Tracker:
                     song_step_color = (r, g, b)
 
                 if step is None:
-                    step = '--'
+                    step = '- -'
 
-                self.render_queue.add_text("tracker_song_font", song_step_color,
-                                           f"{step:0>2}", 18, row_y + 6)
+                self.render_queue.add_text("tracker_timeline_font", song_step_color,
+                                           f"{step:0>2}", 18, row_y + 2)
 
             # PHRASE TRACK
             phrase_playhead_pos = self.sequencer.phrase_playhead_pos
@@ -582,17 +611,17 @@ class Tracker:
 
                 phrase_step_num = self.sequencer.cursor_phrase[step_index]
                 on_phrase = self.sequencer.song_playhead_pos == self.song_cursor
-
+                x = 55
                 if step_index == self.sequencer.phrase_playhead_pos and self.sequencer.is_playing and on_phrase:
                     phrase_step_color = cfg.PLAYHEAD_COLOR
                 elif self.sequencer.cursor_phrase[step_index] is not None:
                     phrase_step_color = (r, g, b)
                 else:
-                    phrase_step_num, phrase_step_color = '---', (r, g, b)
+                    phrase_step_num, phrase_step_color, x = '- -', (r, g, b), 59
 
                 if phrase_step_num is not None:
-                    self.render_queue.add_text("tracker_phrase_font", phrase_step_color,
-                                               f"{phrase_step_num:0>3}", 55, row_y + 8)
+                    self.render_queue.add_text("tracker_font_bold", phrase_step_color,
+                                               f"{phrase_step_num:0>3}", x, row_y + 2)
 
     def render_queue_add_playhead(self):
         playhead_pos_y = None
@@ -611,7 +640,7 @@ class Tracker:
                                        (cfg.pattern_line_len, playhead_pos_y), 2)
 
     def render_queue_add_cursors(self, x, y, w, h):
-        cursor_offset_x, cursor_offset_w = cfg.start_x - 10, 0
+        cursor_offset_x, cursor_offset_w = cfg.start_x - 6, 10
         # song edit cursor
         self.render_queue.add_rect(cfg.CURSOR_COLOR if self.page == 0 else cfg.CURSOR_COLOR_ALT,
                                    10, self.center_y, 34, 1 + cfg.row_h, 2)
@@ -621,26 +650,104 @@ class Tracker:
 
         if self.sequencer.cursor_pattern is not None:
             # cell edit cursor
-            self.render_queue.add_rect(cfg.CURSOR_COLOR if self.page == 2 else cfg.CURSOR_COLOR_ALT,
-                                       x + cursor_offset_x, y, w - cursor_offset_w, h + 1, 2)
-            # row edit cursor
-            self.render_queue.add_rect(cfg.CURSOR_COLOR if self.page == 2 else cfg.CURSOR_COLOR_ALT,
-                                       cfg.start_x - 2, y, 26, 1 + cfg.row_h + (h - cfg.row_h), 2)
+            color = cfg.CURSOR_COLOR if self.page == 2 else cfg.CURSOR_COLOR_ALT
 
-        return cursor_offset_x, cursor_offset_w
+            x_left = x + cursor_offset_x
+            curs_w = w - cursor_offset_w
+            curs_h = h
+            x_right = x_left + w - cursor_offset_w
+            y_top = y
+            y_bottom = y_top + curs_h - 3
+
+            self.render_queue.add_pane((255, 255, 200), x_left, y_top, curs_w+2, curs_h)
+
+            if self.page == 2:
+                chk = self.cycles % 200
+                if chk < 100:
+                    x_left -= 2
+                    x_right += 2
+                    curs_w += 4
+                    curs_h += 2
+                    y_top -= 2
+                    y_bottom += 2
+                elif chk < 125 or chk > 175:
+                    x_left -= 1
+                    x_right += 1
+                    curs_w += 2
+                    curs_h += 1
+                    y_top -= 1
+                    y_bottom += 1
+
+            coords = [
+                #  horz
+                ((x_left, y_top), (x_left + curs_w // 8, y_top)),
+                ((x_right, y_top), (x_right - curs_w // 8, y_top)),
+                ((x_left, y_bottom), (x_left + curs_w // 8, y_bottom)),
+                ((x_right, y_bottom), (x_right - curs_w // 8, y_bottom)),
+
+                #  vert
+                ((x_left, y_top), (x_left, y_top + curs_h // 3)),
+                ((x_right, y_top), (x_right, y_top + curs_h // 3)),
+                ((x_left, y_bottom), (x_left, y_bottom - curs_h // 3)),
+                ((x_right, y_bottom), (x_right, y_bottom - curs_h // 3))
+            ]
+
+            for coord in coords:
+                self.render_queue.add_line(color, coord[0], coord[1], 2)
+        return
 
     def render_queue_add_info_pane(self):
+        track_colors = [
+            (255, 0, 0),  # Red
+            (255, 165, 0),  # Orange
+            (255, 255, 0),  # Yellow
+            (0, 255, 0),  # Green
+            (120, 120, 255),  # Blue
+            (0, 255, 255),  # Cyan
+            (200, 50, 200),  # Purple
+            (255, 192, 203)  # Pink
+        ]
+
         for channel in range(self.sequencer.track_count):
+            r, g, b = track_colors[channel]
+
+            if channel == self.cursor_x and self.sequencer.cursor_pattern is not None:
+                track_bg = cfg.CURSOR_COLOR if self.page == 2 else cfg.CURSOR_COLOR_ALT
+            else:
+                track_bg = [255, 255, 255]
+
+            sel_r, sel_g, sel_b = track_bg
             if self.sequencer.steps_since_last_note[channel] is not None:
                 v = min(255, self.sequencer.steps_since_last_note[channel] * 36)
-                label_font_color = (v, 255, v)
-            else:
-                label_font_color = (255, 255, 255)
+                # Calculate the inverted colour
+                ir = 255 - r
+                ig = 255 - g
+                ib = 255 - b
+                # Blend back to the original colour based on v
+                r = ir + (r - ir) * (v / 255)
+                g = ig + (g - ig) * (v / 255)
+                b = ib + (b - ib) * (v / 255)
+
+                sel_r = min(0 + v, track_bg[0])
+                sel_b = min(0 + v, track_bg[2])
+
+            track_bg = (sel_r, sel_g, sel_b)
+            track_color = (int(r), int(g), int(b))
+
+            self.render_queue.add_rect(track_bg, cfg.start_x - 34 + cfg.midi_label_offset + channel * cfg.col_w,
+                                       cfg.start_y + 45, cfg.col_w - 4, 24)
+
+            self.render_queue.add_rect(cfg.BG_DARKER, cfg.start_x - 34 + cfg.midi_label_offset + channel * cfg.col_w,
+                                       cfg.start_y + 45, cfg.col_w-4, 24, 4)
+
+            self.render_queue.add_rect(track_color,
+                                       cfg.start_x - 14 + cfg.midi_label_offset + channel * cfg.col_w,
+                                       cfg.start_y + 71, cfg.col_w - 44, 2, 5)
 
             # MIDI labels
-            self.render_queue.add_text("big_display_font", label_font_color, f"TRACK {channel + 1}",
-                                       cfg.start_x - 12 + cfg.midi_label_offset + channel * cfg.col_w,
-                                       cfg.start_y + 46, antialias=True)
+            self.render_queue.add_text("track_display_font", (0, 0, 0), f"TRACK {channel + 1}",
+                                       cfg.start_x - 10 + cfg.midi_label_offset + channel * cfg.col_w,
+                                       cfg.start_y + 48, antialias=False)
 
         # draw play icon if playing
         polygon_pts = ((cfg.play_x, cfg.play_y),
@@ -658,19 +765,24 @@ class Tracker:
         if self.sequencer.cursor_pattern is not None:
             info_text_items = [f"BPM: {self.sequencer.cursor_pattern.bpm}",
                                f"LPB: {self.sequencer.cursor_pattern.lpb}",
-                               f"Length: {self.sequencer.cursor_pattern.length}",
-                               f"Octave: {self.octave_mod + 3}",
-                               f"MIDI Out: {self.midi_output_name} ({self.midi_ix})"]
+                               f"LEN: {self.sequencer.cursor_pattern.length}",
+                               f"OCT: {self.octave_mod + 3}"]
         else:
             info_text_items = [f"BPM: n/a",
                                f"LPB: n/a",
-                               f"Length: n/a",
-                               f"Octave: {self.octave_mod + 3}",
-                               f"MIDI Out: {self.midi_output_name} ({self.midi_ix})"]
+                               f"LEN: n/a",
+                               f"OCT: {self.octave_mod + 3}"]
 
-        info_text = "  -  ".join(info_text_items)
-        self.render_queue.add_text("medium_font", (255, 255, 255), info_text,
-                                   cfg.start_x - 12 + cfg.midi_label_offset, 10, antialias=True)
+        y, g, r = 10, 255, 150
+        for itm in info_text_items:
+            self.render_queue.add_text("tracker_info_font", (r, g, 255), itm,
+                                       5, y, antialias=False)
+            y, g, r = y + 16, g - 30, r + 30
+
+        midi_out = f"MIDI Out: {self.midi_output_name} ({self.midi_ix})"
+        color = cfg.PLAYHEAD_COLOR if self.sequencer.is_playing else (255, 255, 255)
+        self.render_queue.add_text("tracker_MIDI_out_font", color, midi_out,
+                                   cfg.start_x - 32 + cfg.midi_label_offset, 10, antialias=False)
 
     def update_render_queue(self):
         self.render_queue.clear()
@@ -688,16 +800,13 @@ class Tracker:
 
         # row/cell cursors
         x, y, w, h = self.get_selection_coords(for_display=True)
-        cursor_offset_x, cursor_offset_w = self.render_queue_add_cursors(x, y, w, h)
+        self.render_queue_add_cursors(x, y, w, h)
 
         # taskbar_pane (needs to be after cursor so that it's on top)
         self.render_queue.add_rect(cfg.BG_TASKPANE, 0, 0, 2000, 75)
 
-        # track selection cursor
-        if self.sequencer.cursor_pattern is not None:
-            self.render_queue.add_rect(cfg.CURSOR_COLOR if self.page == 2 else cfg.CURSOR_COLOR_ALT,
-                                       x + cursor_offset_x, 41,
-                                       cfg.col_w + (w - cfg.col_w) - cursor_offset_w, 24, 2)
-
         self.render_queue_add_info_pane()
+
+        self.cycles += 1
+
 

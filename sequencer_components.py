@@ -1,5 +1,5 @@
 class Sequencer:
-    def __init__(self, timeline_length, num_patterns, track_count):
+    def __init__(self, timeline_length, num_patterns=1024, track_count=8):
         self.track_count = track_count
         self.timeline_length = timeline_length
         self.max_patterns = num_patterns
@@ -24,6 +24,59 @@ class Sequencer:
         self.follow_playhead = False
 
         self.last_bpm, self.last_lpb, self.last_length = 120, 16, 64
+
+    def reset(self):
+        self.song_steps = [0] + [None for _ in range(self.timeline_length-1)]
+        self.phrases = {0: [0] + [None for _ in range(self.timeline_length - 1)],
+                        -1: [None for _ in range(self.timeline_length)]}
+        self.patterns = {0: Pattern(num=0, track_count=self.track_count, length=64, lpb=16, bpm=120)}
+
+        self.cursor_pattern = self.playing_pattern = self.patterns[0]
+        self.cursor_phrase = self.phrases[0]
+
+        self.step_time = 60 / (self.cursor_pattern.bpm * self.cursor_pattern.lpb)
+        self.time_since_last_step = 0
+        self.last_vel = 80
+        self.song_playhead_pos = 0
+        self.phrase_playhead_pos = 0
+        self.pattern_playhead_pos = 0
+        self.last_note_played = [None for _ in range(self.track_count)]
+        self.steps_since_last_note = [None for _ in range(self.track_count)]
+        self.is_playing = False
+        self.follow_playhead = False
+
+        self.last_bpm, self.last_lpb, self.last_length = 120, 16, 64
+
+    def json_serialize(self):
+        return {
+            "song_steps": self.song_steps,
+            "phrases": self.phrases,
+            "patterns": {num: pattern.json_serialize() for num, pattern in self.patterns.items()},
+        }
+
+    def load_from_json(self, data):
+        self.reset()
+        self.song_steps = data['song_steps']
+        self.phrases = {}
+        for num, phrase_data in data['phrases'].items():
+            if num.isdigit():
+                self.phrases[int(num)] = phrase_data
+
+        self.patterns = {}
+        for num, pattern_data in data['patterns'].items():
+            if num.isdigit():
+                num = int(num)
+                if num in self.patterns:
+                    self.patterns[num].load_from_json(pattern_data)
+                else:
+                    new_pattern = Pattern(num, self.track_count, self.last_length,
+                                          self.last_lpb, self.last_bpm)
+                    new_pattern.load_from_json(pattern_data)
+                    self.patterns[num] = new_pattern
+
+        self.timeline_length = len(self.song_steps)
+        self.cursor_pattern = self.playing_pattern = self.patterns[0]
+        self.cursor_phrase = self.phrases[0]
 
     def calculate_increment(self, current_value, increment):
         if current_value is None and increment < 0:
@@ -114,9 +167,9 @@ class Sequencer:
                 self.song_playhead_pos = 0
 
             self.update_sequencer_params()
-            print(f"Moving to next song step: Phrase {self.song_steps[_next]}")
+            # print(f"Moving to next song step: Phrase {self.song_steps[_next]}")
         else:
-            print("End of song reached or undefined next song step. Restarting song.")
+            # print("End of song reached or undefined next song step. Restarting song.")
             self.song_playhead_pos = 0
             self.phrase_playhead_pos = 0
             self.pattern_playhead_pos = 0
@@ -132,7 +185,7 @@ class Sequencer:
             self.phrase_playhead_pos = _next
             self.pattern_playhead_pos = 0  # Reset pattern playhead to start of new pattern
             self.update_sequencer_params()
-            print(f"Moving to next pattern in current phrase: Pattern {current_patterns[_next]}")
+            # print(f"Moving to next pattern in current phrase: Pattern {current_patterns[_next]}")
         else:
             self.update_song_playhead()  # Move to next song step if no more patterns in current phrase
 
@@ -151,10 +204,36 @@ class Pattern:
         self.lpb = lpb
         self.bpm = bpm
 
+    def json_serialize(self):
+        return {
+            "num": self.num,
+            "length": self.length,
+            "tracks": [track.json_serialize() for track in self.tracks],
+            "lpb": self.lpb,
+            "bpm": self.bpm
+        }
+
+    def load_from_json(self, data):
+        self.num = data['num']
+        self.length = data['length']
+        self.lpb = data['lpb']
+        self.bpm = data['bpm']
+        self.tracks = [Track(self.length) for _ in range(len(data['tracks']))]
+        for i, track in enumerate(data['tracks']):
+            self.tracks[i].load_from_json(track)
+
 
 class Track:
     def __init__(self, length):
         self.steps = [Step() for _ in range(length)]
+
+    def json_serialize(self):
+        return [step.json_serialize() for step in self.steps]
+
+    def load_from_json(self, data):
+        self.steps = [Step() for _ in range(len(data))]
+        for i, step in enumerate(data):
+            self.steps[i].load_from_json(step)
 
     def update_step(self, position, note=None, vel=None, pitchbend=None, modwheel=None):
         step = self.steps[position]
@@ -183,12 +262,26 @@ class Step:
         self.pitchbend = pitchbend
         self.modwheel = modwheel
 
+    def json_serialize(self):
+        return {
+            "note": self.note,
+            "vel": self.vel,
+            "pitchbend": self.pitchbend,
+            "modwheel": self.modwheel
+        }
+
+    def load_from_json(self, data):
+        self.note = data['note']
+        self.vel = data['vel']
+        self.pitchbend = data['pitchbend']
+        self.modwheel = data['modwheel']
+
     def components(self):
         if self.note == 'OFF':
             return [(f'OFF', (255, 150, 150))]
         else:
-            note = '...' if self.note is None else self.note
-            vel = '..' if self.vel is None else self.vel
+            note = '- -' if self.note is None else self.note
+            vel = '--' if self.vel is None else self.vel
             pitchbend = '00' if self.pitchbend is None else self.pitchbend
             modwheel = '00' if self.modwheel is None else self.modwheel
 

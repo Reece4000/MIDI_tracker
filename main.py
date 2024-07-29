@@ -4,7 +4,7 @@ import sys
 import time
 from time import perf_counter
 from tracker import Tracker
-from keyhandler import KeyHandler
+from key_handler import KeyHandler
 from gui_elements import UserInput
 import constants
 
@@ -13,19 +13,22 @@ pygame.font.init()
 pygame.midi.init()
 pygame.key.set_repeat(180, 40)
 
-tracker_font = r'fonts\Spritecoder_Regular.ttf'
-display_font = 'Consolas'
-courier = pygame.font.SysFont('Courier', 18)
-consolas = pygame.font.SysFont('Consolas', 18)
-pixel = pygame.font.Font(r'fonts\Code 7x5.ttf', 10)
+
 font_mapping = {
-    "medium_font": pygame.font.SysFont(display_font, 12, bold=True),
-    "big_display_font": pygame.font.SysFont(display_font, 14, bold=True),
-    "tracker_pattern_font": pixel,
-    "tracker_song_font": pygame.font.Font(r'fonts\Bittypix Monospace.otf', 10),
-    "tracker_phrase_font": pygame.font.Font(r'fonts\Bittypix Monospace.otf', 8),
-    "tracker_row_label_font": pygame.font.Font(r'fonts\Bittypix Monospace.otf', 8),
-    "tracker_font_bold": pygame.font.Font(tracker_font, 9),
+    # Info display
+    "tracker_info_font": pygame.font.Font(r'fonts\pixel\PixelOperatorMonoHB8.ttf', 8),
+    # MIDI out display font
+    "tracker_MIDI_out_font": pygame.font.Font(r'fonts\pixel\PixelOperatorSC-Bold.ttf', 24),
+    # MIDI track display
+    "track_display_font": pygame.font.Font(r'fonts\pixel\PixelOperatorSC-Bold.ttf', 16),
+    # Tracker step
+    "tracker_font": pygame.font.Font(r'fonts\pixel\PixelOperatorSC.ttf', 16),
+    # Bold tracker step
+    "tracker_font_bold": pygame.font.Font(r'fonts\pixel\PixelOperatorSC-Bold.ttf', 16),
+    # Tracker row numbers
+    "tracker_row_label_font": pygame.font.Font(r'fonts\pixel\PixelOperatorSC-Bold.ttf', 16),
+    # Tracker timeline numbers
+    "tracker_timeline_font": pygame.font.Font(r'fonts\pixel\PixelOperatorSC-Bold.ttf', 16),
 }
 
 
@@ -44,9 +47,11 @@ def render_components(render_queue, draw_screen):
             pygame.draw.polygon(draw_screen, *item[1])
         elif component == "pane":
             s = pygame.Surface(item[1][1])
-            s.set_alpha(50)
+            s.set_alpha(40)
             s.fill(item[1][0])
             draw_screen.blit(s, item[1][2])
+        elif component == "circle":
+            pygame.draw.circle(draw_screen, *item[1])
 
     pygame.display.update()
 
@@ -96,6 +101,7 @@ def main_loop():
                 keyhandler.handle_keys(event)
                 redraw = True
             elif event.type == pygame.MOUSEWHEEL:
+                # need to fix issues with selection span when using mousewheel
                 tracker.cursor_y -= event.y
                 tracker.cursor_y = max(0, min(tracker.cursor_y, tracker.sequencer.cursor_pattern.length - 1))
                 redraw = True
