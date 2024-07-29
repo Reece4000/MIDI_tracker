@@ -157,8 +157,8 @@ class Sequencer:
         _next = self.song_playhead_pos + 1
         if _next < len(self.song_steps) and self.song_steps[_next] is not None:
             self.song_playhead_pos = _next
-            self.phrase_playhead_pos = 0  # Reset phrase playhead to start of new phrase
-            self.pattern_playhead_pos = 0  # Reset pattern playhead to start of new pattern
+            self.phrase_playhead_pos = 0
+            self.pattern_playhead_pos = 0
 
             # handle case where sequencer is playing and no patterns in phrase track
             playing_phrase_num = self.song_steps[self.song_playhead_pos]
@@ -167,9 +167,7 @@ class Sequencer:
                 self.song_playhead_pos = 0
 
             self.update_sequencer_params()
-            # print(f"Moving to next song step: Phrase {self.song_steps[_next]}")
         else:
-            # print("End of song reached or undefined next song step. Restarting song.")
             self.song_playhead_pos = 0
             self.phrase_playhead_pos = 0
             self.pattern_playhead_pos = 0
@@ -177,15 +175,13 @@ class Sequencer:
 
     def update_phrase_playhead(self):
         _next = self.phrase_playhead_pos + 1
-        current_phrase_num = self.song_steps[self.song_playhead_pos]  # Phrase number currently playing
-        current_patterns = self.phrases[current_phrase_num]  # Patterns within the current phrase
+        current_phrase_num = self.song_steps[self.song_playhead_pos]
+        current_patterns = self.phrases[current_phrase_num]
 
-        # Check if next pattern index is within current phrase pattern list
         if _next < len(current_patterns) and current_patterns[_next] is not None:
             self.phrase_playhead_pos = _next
-            self.pattern_playhead_pos = 0  # Reset pattern playhead to start of new pattern
+            self.pattern_playhead_pos = 0
             self.update_sequencer_params()
-            # print(f"Moving to next pattern in current phrase: Pattern {current_patterns[_next]}")
         else:
             self.update_song_playhead()  # Move to next song step if no more patterns in current phrase
 
@@ -218,22 +214,38 @@ class Pattern:
         self.length = data['length']
         self.lpb = data['lpb']
         self.bpm = data['bpm']
-        self.tracks = [Track(self.length) for _ in range(len(data['tracks']))]
-        for i, track in enumerate(data['tracks']):
-            self.tracks[i].load_from_json(track)
+        # print(data['tracks'])  # should show list of dictionaries
+        self.tracks = [Track(self.length) for _ in range(len(data.get('tracks', [])))]
+        for i, track_data in enumerate(data.get('tracks', [])):
+            self.tracks[i].load_from_json(track_data)
 
 
 class Track:
     def __init__(self, length):
+        self.length = length
         self.steps = [Step() for _ in range(length)]
 
     def json_serialize(self):
-        return [step.json_serialize() for step in self.steps]
+        serialized_steps = {str(i): step.json_serialize() for i, step in enumerate(self.steps) if step.has_data()}
+        return {"length": self.length, "steps": serialized_steps}
 
     def load_from_json(self, data):
-        self.steps = [Step() for _ in range(len(data))]
-        for i, step in enumerate(data):
-            self.steps[i].load_from_json(step)
+        # Check if data is the expected dictionary with 'length' and 'steps'
+        if isinstance(data, dict) and 'length' in data and 'steps' in data:
+            self.length = data['length']
+            steps_data = data['steps']
+            self.steps = [Step() for _ in range(self.length)]  # reinitialize steps based on tr length
+            for index, step_data in steps_data.items():
+                self.steps[int(index)].load_from_json(step_data)
+        elif isinstance(data, dict) and 'steps' not in data:
+            max_index = max((int(index) for index in data.keys()), default=-1)
+            self.length = max_index + 1  # Update length to accommodate all steps
+            self.steps = [Step() for _ in range(self.length)]
+            for index, step_data in data.items():
+                if isinstance(step_data, dict):
+                    self.steps[int(index)].load_from_json(step_data)
+        else:
+            raise TypeError(f"Unexpected data type or format. Data: {data}")
 
     def update_step(self, position, note=None, vel=None, pitchbend=None, modwheel=None):
         step = self.steps[position]
@@ -262,6 +274,9 @@ class Step:
         self.pitchbend = pitchbend
         self.modwheel = modwheel
 
+    def has_data(self):
+        return any([self.note, self.vel, self.pitchbend, self.modwheel])
+
     def json_serialize(self):
         return {
             "note": self.note,
@@ -271,10 +286,10 @@ class Step:
         }
 
     def load_from_json(self, data):
-        self.note = data['note']
-        self.vel = data['vel']
-        self.pitchbend = data['pitchbend']
-        self.modwheel = data['modwheel']
+        self.note = data.get('note')
+        self.vel = data.get('vel')
+        self.pitchbend = data.get('pitchbend')
+        self.modwheel = data.get('modwheel')
 
     def components(self):
         if self.note == 'OFF':

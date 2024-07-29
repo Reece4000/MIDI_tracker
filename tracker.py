@@ -1,13 +1,9 @@
-import pygame
 import pygame.midi
 from sequencer_components import *
 from gui_elements import *
 import constants as cfg
 import json
-import csv
-import pickle
-from constants import *
-import os
+
 
 
 class Tracker:
@@ -161,6 +157,8 @@ class Tracker:
 
         serialised_sequencer_data = self.sequencer.json_serialize()
         # save json dump to file
+        if not save_name.startswith("save_files/"):
+            save_name = "save_files/" + save_name
         if not save_name.endswith(".json"):
             save_name += ".json"
 
@@ -181,6 +179,8 @@ class Tracker:
         if load_name is None:
             return
 
+        if not load_name.startswith("save_files/"):
+            load_name = "save_files/" + load_name
         if not load_name.endswith(".json"):
             load_name += ".json"
         self.sequencer.is_playing = False
