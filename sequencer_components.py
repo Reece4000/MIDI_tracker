@@ -1,3 +1,63 @@
+from rtmidi import MidiOut
+from time import perf_counter
+import sys
+
+
+class MidiHandler:
+    def __init__(self, num_channels):
+        self.num_channels = num_channels
+        self.midi_scaling = {i: int(i / 0.7874) for i in range(100)}
+        self.note_base_names = ['C-', 'C#', 'D-', 'D#', 'E-', 'F-', 'F#', 'G-', 'G#', 'A-', 'A#', 'B-', 'OFF']
+        self.midi_out = MidiOut()
+        self.pulse = 0
+
+    def initialise_midi(self):
+        available_ports = self.midi_out.get_ports()
+        if available_ports:
+            for index, port in enumerate(available_ports):
+                if "Internal MIDI" in port:
+                    self.midi_out.open_port(index)
+                    return f"{port} ({index})"
+        return None
+
+    def note_to_midi(self, note):
+        if note == 'OFF':
+            return -1
+        if note:
+            note_name = note[:-1]
+            octave = int(note[-1])
+            note_index = self.note_base_names.index(note_name)
+            return 12 * (octave + 1) + note_index
+        return None
+
+    def send_midi_clock(self):
+        self.pulse += 1
+        if self.pulse == 4:
+            self.midi_out.send_message([0xF8])
+            self.pulse = 0
+
+    def send_midi_start(self):
+        self.midi_out.send_message([0xFA])
+
+    def send_midi_stop(self):
+        self.midi_out.send_message([0xFC])
+
+    def note_on(self, channel, note, velocity):
+        velocity = self.midi_scaling[velocity]
+        midi_note = self.note_to_midi(note) if not isinstance(note, int) else note
+        if midi_note != -1:
+            self.midi_out.send_message([0x90 + channel, midi_note, velocity])
+
+    def note_off(self, channel, note):
+        midi_note = self.note_to_midi(note) if not isinstance(note, int) else note
+        if midi_note != -1:
+            self.midi_out.send_message([0x80 + channel, midi_note, 0])
+
+    def all_notes_off(self):
+        for channel in range(self.num_channels):
+            self.midi_out.send_message([0xB0 + channel, 123, 0])
+
+
 class Sequencer:
     def __init__(self, timeline_length, num_patterns=1024, track_count=8):
         self.track_count = track_count
@@ -12,8 +72,11 @@ class Sequencer:
         self.cursor_pattern = self.playing_pattern = self.patterns[0]
         self.cursor_phrase = self.phrases[0]
 
+        self.pulse_time = 60 / (self.cursor_pattern.bpm * 96)
         self.step_time = 60 / (self.cursor_pattern.bpm * self.cursor_pattern.lpb)
+        self.clock_time = 60 / (self.cursor_pattern.bpm * 24)
         self.time_since_last_step = 0
+        self.time_since_last_pulse = 0
         self.last_vel = 80
         self.song_playhead_pos = 0
         self.phrase_playhead_pos = 0
@@ -36,15 +99,12 @@ class Sequencer:
 
         self.step_time = 60 / (self.cursor_pattern.bpm * self.cursor_pattern.lpb)
         self.time_since_last_step = 0
-        self.last_vel = 80
         self.song_playhead_pos = 0
         self.phrase_playhead_pos = 0
         self.pattern_playhead_pos = 0
         self.last_note_played = [None for _ in range(self.track_count)]
         self.steps_since_last_note = [None for _ in range(self.track_count)]
         self.is_playing = False
-        self.follow_playhead = False
-
         self.last_bpm, self.last_lpb, self.last_length = 120, 16, 64
 
     def json_serialize(self):
@@ -132,6 +192,9 @@ class Sequencer:
     def is_cursor_on_playing_pattern(self, song_cursor, phrase_cursor):
         cursor_phrase_num = self.song_steps[song_cursor]
         cursor_pattern_num = self.phrases[cursor_phrase_num][phrase_cursor]
+        if cursor_pattern_num is None:
+            return False
+
         cursor_pattern = self.patterns[cursor_pattern_num]
 
         playing_phrase_num = self.song_steps[self.song_playhead_pos]
@@ -147,6 +210,7 @@ class Sequencer:
         playing_pattern = self.patterns[playing_pattern_num]
 
         self.step_time = 60 / (playing_pattern.bpm * playing_pattern.lpb)
+        self.pulse_time = 60 / (playing_pattern.bpm * 96)
         self.playing_pattern = playing_pattern
 
         if self.follow_playhead:
@@ -262,6 +326,11 @@ class Track:
         for i, step in enumerate(self.steps):
             if step.note is not None:
                 print(f'{i}: {step.note} {step.vel} {step.pitchbend} {step.modwheel})')
+
+    def extend_steps(self, new_length):
+        if new_length > self.length:
+            self.steps.extend([Step() for _ in range(new_length - self.length)])
+            self.length = new_length
 
     def clear_step(self, position):
         self.steps[position] = Step()
