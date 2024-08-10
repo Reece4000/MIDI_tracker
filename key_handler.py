@@ -186,7 +186,8 @@ class KeyHandler:
 
     def handle_home(self):
         if self.tracker.page == 2:
-            y = -self.tracker.sequencer.cursor_pattern.length
+            sel_track = self.tracker.sequencer.cursor_pattern.tracks[self.tracker.cursor_x]
+            y = -sel_track.length
         else:
             y = -self.tracker.sequencer.timeline_length
         if self.mods["shift"]:
@@ -196,7 +197,8 @@ class KeyHandler:
 
     def handle_end(self):
         if self.tracker.page == 2:
-            y = self.tracker.sequencer.cursor_pattern.length
+            sel_track = self.tracker.sequencer.cursor_pattern.tracks[self.tracker.cursor_x]
+            y = sel_track.length
         else:
             y = self.tracker.sequencer.timeline_length
         if self.mods["shift"]:
@@ -234,7 +236,7 @@ class KeyHandler:
             print("Ends here")
 
     def handle_play_pause(self):
-        self.tracker.play(init=True)
+        self.tracker.toggle_playback()
 
     def handle_keys(self, key, mods):
         self.update_modifiers_state(mods)
@@ -271,10 +273,12 @@ class KeyHandler:
             self.handle_new()
         elif self.mods["ctrl"] and key == pygame.K_d:
             self.handle_duplicate()
+        elif key == pygame.K_HASH:
+            self.tracker.toggle_mute()
         elif key in key_action_mapping:
             key_action_mapping[key]()
         elif key in self.note_mapping and self.tracker.page == 2:
-            self.tracker.add_note(self.note_mapping[key])
+            self.tracker.add_step(self.note_mapping[key])
 
     def handle_joystick(self, event):
         mapping = {
