@@ -1,0 +1,45 @@
+
+To add:
+
+1)  Menu to choose MIDI Out
+	-   add to left sidebar
+	-   clickable button
+	-   show list of possible midi devices
+
+2)  Menu to choose Controller input
+    -   same area as MIDI out selection
+
+3)  Velocity changes via right shoulder buttons
+    -   when select button held down, user can modify velocities via shoulder axis buttons
+    -   left shoulder sets vel of first step, right shoulder sets last step, with vals inbetween interpolated?
+    -   or could do it so that this defines a random range, with the l and r as upper and lower bounds
+
+4)  fix master components
+	-   store as array
+	-   use dict to map the array elements to single letters
+	    (use one colour for each component, so multiple components can have the same single letter)
+	-   do we just make it so that master components affect all tracks? can potentially
+	    change this later
+
+5)  fix zoom edit on the master track - has no attr 'notes'
+
+6)  add scales - probably some scale files we can get from Reaper - option to force notes to scale,
+    or evaluate during playback?
+
+7)  add menu navigation and bindings for LPB, length, swing,  scale, BPM and loops
+    - use radial menus
+
+8)  add track outline colouring for selected tracks
+
+9)  pressing some modifier key shows which 'page' the cursor is currently on and allows users to switch
+    page - pages can be master track, pattern tracks, phrase, song: or, if we know there will only be
+    these four pages, we can map each one to a single button while the modifier is pressed
+
+
+
+    for full page menus we can repurpose the tracker pattern page, have say 8 x 16 options;
+    could work for save and load
+
+10) note seek broken with new list note structure
+
+11) duplicate broken - referencing note rather than notes

@@ -1,31 +1,83 @@
-import pygame
-import constants
 import sys
-from time import perf_counter
-from tracker import Tracker
-
-"""
-Functions to add:
-- Fade down: with a selected range, fade down the vel of the notes in each track
-- Fade up: with a selected range, fade up the vel of the notes in each track
-- Fill: with a selected range, fill the notes in each track, harmonic or percussive
-- Add notes: allow users to add more than one note or cc to a given step:
-    -    this will require a new data structure to hold multiple notes per step
-    -    on the tracker, will display as the root note with an asterisk
-
-- Add keyboard shortcut to increase/decrease note/octave of selection
-
-- CTRL and up/ ctrl down should go up one or down one in the phrase sequencer - if no next pattern,
-should create a new one
-"""
+import os 
+import tracemalloc
+from src import utils
+from src.state_manager import StateManager
+from src.tracker import Tracker
+import cProfile
+import traceback
+import psutil
 
 
-# create a function which integrates with the rendering queue to emit an event when it's time to send a
-# 24PPQ midi clock signal
+os.chdir(os.path.abspath(os.path.dirname(__file__)))
+os.environ["SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS"] = "1"
+
+
+class EventBus:
+    def __init__(self):
+        self._handlers = {}
+
+    def subscribe(self, event_type, handler):
+        if event_type not in self._handlers:
+            self._handlers[event_type] = []
+        self._handlers[event_type].append(handler)
+
+    def publish(self, event_type, data=None):
+        if event_type in self._handlers:
+            for handler in self._handlers[event_type]:
+                if data is None:
+                    handler()
+                else:
+                    handler(data)
+
+
+isWindows = True
+try:
+    sys.getwindowsversion()
+except AttributeError:
+    isWindows = False
+
+p = psutil.Process(os.getpid())
+if not isWindows:
+    p.nice(10)
+else:
+    p.nice(psutil.REALTIME_PRIORITY_CLASS)
+
+def print_timings():
+    print("\nAverage execution times per method:")
+    for method_name, times in utils.measured_times.items():
+        avg_time = times[0]
+        print(f"{method_name}: {avg_time * 1000000:.2f} µs")
+
+
+                
+
+def main():
+    tracemalloc.start()
+    try:
+        event_bus = EventBus()
+        tracker = Tracker(event_bus)
+    except Exception as e:
+        input(f"Error: {e}")
+        sys.exit()
+
+    tracker.running_loop()
+
+    print_timings()
+    snapshot = tracemalloc.take_snapshot()
+    top_stats = snapshot.statistics('lineno')
+    print("Memory allocation, top 10 lines")
+    for stat in top_stats[:10]:
+        print(stat)
+
+    tracemalloc.stop()
+   
 
 
 if __name__ == "__main__":
-    tracker = Tracker(track_count=constants.track_count, length=constants.track_length)
-    tracker.running_loop()
-    sys.exit()
+    try:
+        main()
+    except Exception as e:
+        print(traceback.format_exc())
+    input("Press enter to exit")
 
