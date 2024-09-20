@@ -3,11 +3,6 @@ from src.utils import timing_decorator
 from config import constants, controller, events
 from config.pages import *
 
-# joystick logic:
-# user presses x to add data to a step or edit the data on that step
-# upon pressing x, the step zoom window comes into focus
-# user presses shoulder buttons to move left and right and d-pad to edit the step data
-
 
 class InputHandler:
     def __init__(self, tracker):

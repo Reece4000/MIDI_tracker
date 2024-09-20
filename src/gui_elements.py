@@ -19,6 +19,37 @@ class UiComponent:
         return False
 
 
+class Button(UiComponent):
+    def __init__(self, x, y, w, h, text, font, text_color, bg_color):
+        super().__init__()
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.text = text
+        self.font = font
+
+        # text, font, color, bg_color
+        self.state = [text_color, bg_color]
+
+    def initialise(self):
+        self.force = True
+        return [[RECT, themeing.BG_COLOR, self.x-2, self.y-2, self.w + 4, self.h + 4, 0]]
+
+    def check_for_state_change(self, mouse_x, mouse_y):
+        elems = []
+        if self.x + self.w >= mouse_x >= self.x and self.y + self.h >= mouse_y >= self.y:
+            text_color, bg_color = themeing.BLACK, themeing.CURSOR_COLOR
+        else:
+            text_color, bg_color = themeing.WHITE, themeing.TIMELINE_BG_HL
+
+        if self.dirtied([text_color, bg_color]):
+            elems.append([RECT, bg_color, self.x, self.y, self.w, self.h, 0])
+            elems.append([TEXT, self.font, text_color, self.text, self.x + 7, self.y, 0])
+
+        return elems
+
+
 class KeyHints:
     def __init__(self):
         self.x1 = display.pattern_area_width + display.timeline_width + display.col_w - 2
@@ -91,36 +122,6 @@ class PageSwitchMarkers:
         elif page == 3:
             elems.append([RECT, themeing.CURSOR_COLOR, *self.pattern_coords])
             self.current_coords = tuple(self.pattern_coords)
-        return elems
-
-
-class OptionsButton(UiComponent):
-    def __init__(self):
-        super().__init__()
-        self.x = 4
-        self.y = 132
-        self.w = 70
-        self.h = display.row_h - 4
-
-        # text color, bg_color
-        self.state = [None, None]
-
-
-    @staticmethod
-    def initialise():
-        return [[RECT, themeing.BG_COLOR, 2, 130, 74, display.row_h, 0]]
-
-    def check_for_state_change(self, mouse_x, mouse_y):
-        elems = []
-        if self.x + self.w >= mouse_x >= self.x and self.y + self.h >= mouse_y >= self.y:
-            text_color, bg_color = themeing.BLACK, themeing.CURSOR_COLOR
-        else:
-            text_color, bg_color = themeing.WHITE, themeing.TIMELINE_BG_HL
-
-        if self.dirtied([text_color, bg_color]):
-            elems.append([RECT, bg_color, self.x, self.y, self.w, self.h, 0])
-            elems.append([TEXT, "options_font", text_color, "OPTIONS", self.x + 7, self.y, 0])
-
         return elems
 
 

@@ -1,16 +1,15 @@
 from config import constants, display, themeing
-from src.ui_components.view_component import ViewComponent
-from src.gui_elements import PatternInfoText, PlayPause, OptionsButton
-from config.constants import page_map as pmap
+from src.gui_elements import PatternInfoText, PlayPause, Button
 
 
 class InfoPane:
     def __init__(self, tracker):
         self.tracker = tracker
-        render_queue = self.tracker.renderer.render_queue
         self.pattern_info_text = PatternInfoText()
         self.play_pause = PlayPause()
-        self.options_button = OptionsButton()
+        self.options_button = Button(x=4, y=132, w=70, h=display.row_h - 4, text="OPTIONS",
+                                     font="options_font", text_color=themeing.WHITE,
+                                     bg_color=themeing.TIMELINE_BG_HL)
         self.initialise()
 
     def initialise(self):
