@@ -1,7 +1,7 @@
 import pygame
 from src.utils import timing_decorator
 from config import constants, controller, events
-from config.constants import page_map as pmap
+from config.pages import *
 
 # joystick logic:
 # user presses x to add data to a step or edit the data on that step
@@ -120,7 +120,6 @@ class InputHandler:
                     self.tracker.process_mouse(self.initial_mouse_pos, self.final_mouse_pos, s=2)
 
             iterations += 1
-
         return
 
     def update_modifiers_state(self, mods):
@@ -167,11 +166,12 @@ class InputHandler:
     def handle_tab(self):
         self.tracker.page_switch(-1 if self.mods["shift"] else 1)
 
-    def handle_up(self):
-        if self.joy_btn_state[0]["Held"] or self.select_held:
+    def handle_up(self, repeat_press=False):
+        if self.joy_btn_state[2]["Held"] and self.mods["r1"]:
+            self.tracker.move_in_place(0, -1)
+        elif self.joy_btn_state[0]["Held"] or self.select_held:
             self.tracker.handle_param_adjust(12)
-            return
-        if self.mods["ctrl"] and self.mods["alt"]:
+        elif self.mods["ctrl"] and self.mods["alt"]:
             self.tracker.adjust_bpm(10)
         elif self.mods["ctrl"] and self.mods["shift"]:
             self.tracker.seek("up", expand_selection=True)
@@ -181,12 +181,12 @@ class InputHandler:
         else:  # self.mods["shift"]:
             self.tracker.move_cursor(x=0, y=-1, expand_selection=self.joy_btn_state[2]["Held"])
 
-    def handle_down(self):
-        print(self.tracker.page)
-        if self.joy_btn_state[0]["Held"] or self.select_held:
+    def handle_down(self, repeat_press=False):
+        if self.joy_btn_state[2]["Held"] and self.mods["r1"]:
+            self.tracker.move_in_place(0, 1)
+        elif self.joy_btn_state[0]["Held"] or self.select_held:
             self.tracker.handle_param_adjust(-12)
-            return
-        if self.mods["ctrl"] and self.mods["alt"]:
+        elif self.mods["ctrl"] and self.mods["alt"]:
             self.tracker.adjust_bpm(-10)
         elif self.mods["ctrl"] and self.mods["shift"]:
             self.tracker.seek("down", expand_selection=True)
@@ -197,7 +197,9 @@ class InputHandler:
             self.tracker.move_cursor(x=0, y=1, expand_selection=self.joy_btn_state[2]["Held"])
 
     def handle_left(self, repeat_press=False):
-        if self.mods["l1"]: # and self.mods["r1"]:
+        if self.joy_btn_state[2]["Held"] and self.mods["r1"]:
+            self.tracker.move_in_place(-1, 0)
+        elif self.mods["l1"]: # and self.mods["r1"]:
             # self.event_bus.emit("page changed", -1)
             self.tracker.page_switch(-1)
         elif self.mods["r1"] and self.joy_btn_state[2]["Held"]:
@@ -214,7 +216,9 @@ class InputHandler:
             self.tracker.move_cursor(x=-1, y=0, expand_selection=self.joy_btn_state[2]["Held"])
 
     def handle_right(self, repeat_press=False):
-        if self.mods["l1"]: # and self.mods["r1"]:
+        if self.joy_btn_state[2]["Held"] and self.mods["r1"]:
+            self.tracker.move_in_place(1, 0)
+        elif self.mods["l1"]: # and self.mods["r1"]:
             # self.event_bus.emit("page changed", 1)
             self.tracker.page_switch(1)
         elif self.mods["r1"] and self.joy_btn_state[2]["Held"]:
@@ -338,25 +342,15 @@ class InputHandler:
             self.tracker.toggle_mute()
         elif key in key_action_mapping:
             key_action_mapping[key]()
-        elif key in self.note_mapping and self.tracker.page == pmap["pattern"]:
+        elif key in self.note_mapping and self.tracker.page == PATTERN:
             self.tracker.keyboard_insert(self.note_mapping[key])
 
     def joystick_functions(self, button, repeat_press=False):
         if button == self.joy_btn_mapping["Down"]:
-            if self.mods["r1"] and self.joy_btn_state[2]["Held"]:
-                self.tracker.move_in_place(x=0, y=1)
-            elif self.mods["l1"]:  # L1
-                self.handle_duplicate()
-            else:
-                self.handle_down()
+            self.handle_down(repeat_press)
+
         elif button == self.joy_btn_mapping["Up"]:
-            if self.mods["r1"] and self.joy_btn_state[2]["Held"]:
-                self.tracker.move_in_place(x=0, y=-1)
-            elif self.mods["l1"]:  # L1
-                if not repeat_press:
-                    self.handle_copy()
-            else:
-                self.handle_up()
+            self.handle_up(repeat_press)
 
         elif button == self.joy_btn_mapping["Right"]:
             self.handle_right(repeat_press)
@@ -389,7 +383,7 @@ class InputHandler:
                 pass
             elif self.mods["l1"]:  # L1
                 self.tracker.insert()
-            elif self.mods["r1"] and not self.tracker.page == self.tracker.page_map["detail"]:
+            elif self.mods["r1"] and not self.tracker.page == EDITOR:
                 self.tracker.page = 4
             else:
                 if not self.joy_btn_state[0]["Held"]:

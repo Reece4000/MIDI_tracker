@@ -6,6 +6,7 @@ from src.state_manager import StateManager
 from src.tracker import Tracker
 import cProfile
 import traceback
+import pstats
 import psutil
 
 
@@ -50,10 +51,12 @@ def print_timings():
         print(f"{method_name}: {avg_time * 1000000:.2f} µs")
 
 
-                
+trace_memory = False
+
 
 def main():
-    tracemalloc.start()
+    if trace_memory:
+        tracemalloc.start()
     try:
         event_bus = EventBus()
         tracker = Tracker(event_bus)
@@ -64,20 +67,27 @@ def main():
     tracker.running_loop()
 
     print_timings()
-    snapshot = tracemalloc.take_snapshot()
-    top_stats = snapshot.statistics('lineno')
-    print("Memory allocation, top 10 lines")
-    for stat in top_stats[:10]:
-        print(stat)
 
-    tracemalloc.stop()
-   
+    if trace_memory:
+        snapshot = tracemalloc.take_snapshot()
+        top_stats = snapshot.statistics('lineno')
+        print("Memory allocation, top 10 lines")
+        for stat in top_stats[:10]:
+            print(stat)
+
+        tracemalloc.stop()
 
 
 if __name__ == "__main__":
     try:
-        main()
+        # Profile the `main` function and save the stats in memory
+        cProfile.run('main()', 'main_stats')
+
+        # Load the profile stats and sort by cumulative time
+        p = pstats.Stats('main_stats')
+        p.strip_dirs().sort_stats('cumtime').print_stats()
+
     except Exception as e:
         print(traceback.format_exc())
-    input("Press enter to exit")
 
+    input("Press enter to exit")

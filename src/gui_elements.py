@@ -1,5 +1,6 @@
 import traceback
 from config import display, themeing, constants
+from config.render_map import *
 from src.utils import timing_decorator
 
 
@@ -9,7 +10,7 @@ class UiComponent:
         self.state = []
         self.force = False
 
-    def is_dirty(self, new_state):
+    def dirtied(self, new_state):
         if self.force or new_state != self.state:
             # print(f"new: {new_state}, old: {self.state}")
             self.state = new_state
@@ -35,13 +36,13 @@ class KeyHints:
         elems = []
         if items != self.current_items:
             self.current_items = items
-            elems.append(["rect", themeing.BG_SEP, self.img_x, self.img_y - 24, 54, 22, 0])
-            elems.append(["rect", themeing.BG_SEP, self.img_x + 56, self.img_y - 24, 40, 22, 0])
+            elems.append([RECT, themeing.BG_SEP, self.img_x, self.img_y - 24, 54, 22, 0])
+            elems.append([RECT, themeing.BG_SEP, self.img_x + 56, self.img_y - 24, 40, 22, 0])
 
-            elems.append(["rect", themeing.BG_SEP, self.img_x + 144, self.img_y - 24, 40, 22, 0])
-            elems.append(["rect", themeing.BG_SEP, self.img_x + 186, self.img_y - 24, 54, 22, 0])
+            elems.append([RECT, themeing.BG_SEP, self.img_x + 144, self.img_y - 24, 40, 22, 0])
+            elems.append([RECT, themeing.BG_SEP, self.img_x + 186, self.img_y - 24, 54, 22, 0])
 
-            elems.append(["rect", (100, 180, 220), self.img_x, self.img_y, 240, 86, 0])
+            elems.append([RECT, (100, 180, 220), self.img_x, self.img_y, 240, 86, 0])
 
             to_render = [[ self.x1, self.y + 4, items[0][0]],         [ self.x1, self.y + 52, items[0][1]],
                          [ self.x1 - 24, self.y + 28, items[0][2]],   [ self.x1 + 24, self.y + 28, items[0][3]],
@@ -50,8 +51,8 @@ class KeyHints:
                          [self.x2 - 25, self.y + 29, items[1][2]],    [self.x2 + 25, self.y + 29, items[1][3]]]
 
             for itm in to_render:
-                elems.append(["circle", (20, 20, 20), (itm[0] + 12, itm[1] + 4), 15, 0])
-                elems.append(["text", "tracker_info_font", themeing.WHITE, itm[2], itm[0], itm[1], 0])
+                elems.append([CIRCLE, (20, 20, 20), (itm[0] + 12, itm[1] + 4), 15, 0])
+                elems.append([TEXT, "tracker_info_font", themeing.WHITE, itm[2], itm[0], itm[1], 0])
 
             self.current_items = items
 
@@ -70,25 +71,25 @@ class PageSwitchMarkers:
     def initialise(self):
         elems = []
         for coords in (self.pattern_coords, self.master_coords, self.song_track_coords, self.phrase_track_coords):
-            elems.append(["rect", themeing.LINE_16_HL_BG, *coords])
-        elems.append(["rect", themeing.CURSOR_COLOR, *self.current_coords])
+            elems.append([RECT, themeing.LINE_16_HL_BG, *coords])
+        elems.append([RECT, themeing.CURSOR_COLOR, *self.current_coords])
         return elems
 
     def update(self, page, x):
         elems = []
         if self.current_coords is not None:
-            elems.append(["rect", themeing.LINE_16_HL_BG, *self.current_coords])
+            elems.append([RECT, themeing.LINE_16_HL_BG, *self.current_coords])
         if page == 0:
-            elems.append(["rect", themeing.CURSOR_COLOR, *self.song_track_coords])
+            elems.append([RECT, themeing.CURSOR_COLOR, *self.song_track_coords])
             self.current_coords = tuple(self.song_track_coords)
         elif page == 1:
-            elems.append(["rect", themeing.CURSOR_COLOR, *self.phrase_track_coords])
+            elems.append([RECT, themeing.CURSOR_COLOR, *self.phrase_track_coords])
             self.current_coords = tuple(self.phrase_track_coords)
         elif page == 2:
-            elems.append(["rect", themeing.CURSOR_COLOR, *self.master_coords])
+            elems.append([RECT, themeing.CURSOR_COLOR, *self.master_coords])
             self.current_coords = tuple(self.master_coords)
         elif page == 3:
-            elems.append(["rect", themeing.CURSOR_COLOR, *self.pattern_coords])
+            elems.append([RECT, themeing.CURSOR_COLOR, *self.pattern_coords])
             self.current_coords = tuple(self.pattern_coords)
         return elems
 
@@ -107,7 +108,7 @@ class OptionsButton(UiComponent):
 
     @staticmethod
     def initialise():
-        return [["rect", themeing.BG_COLOR, 2, 130, 74, display.row_h, 0]]
+        return [[RECT, themeing.BG_COLOR, 2, 130, 74, display.row_h, 0]]
 
     def check_for_state_change(self, mouse_x, mouse_y):
         elems = []
@@ -116,9 +117,9 @@ class OptionsButton(UiComponent):
         else:
             text_color, bg_color = themeing.WHITE, themeing.TIMELINE_BG_HL
 
-        if self.is_dirty([text_color, bg_color]):
-            elems.append(["rect", bg_color, self.x, self.y, self.w, self.h, 0])
-            elems.append(["text", "options_font", text_color, "OPTIONS", self.x + 7, self.y, 0])
+        if self.dirtied([text_color, bg_color]):
+            elems.append([RECT, bg_color, self.x, self.y, self.w, self.h, 0])
+            elems.append([TEXT, "options_font", text_color, "OPTIONS", self.x + 7, self.y, 0])
 
         return elems
 
@@ -150,9 +151,9 @@ class PlayPause:
         r, g, b = (60, 100, 100)
         w = 24
         centre = display.play_y + 9
-        elems.append(["circle", (r, g, b), (37, centre), w, 0])
+        elems.append([CIRCLE, (r, g, b), (37, centre), w, 0])
         for i in range(w):
-            elems.append(["circle", (r, g, b), (37, centre), w - i, 0])
+            elems.append([CIRCLE, (r, g, b), (37, centre), w - i, 0])
             r, g, b = r + 1, g + 1, b + 1
         return elems
 
@@ -166,12 +167,12 @@ class PlayPause:
             pause_color = themeing.BLUE
 
         if play_color != self.play_color:
-            elems.append(["polygon", play_color, self.play_coords, 0])
+            elems.append([POLYGON, play_color, self.play_coords, 0])
             self.play_color = play_color
 
         if pause_color != self.pause_color:
-            elems.append(["rect", pause_color, *self.pause_rect1])
-            elems.append(["rect", pause_color, *self.pause_rect2])
+            elems.append([RECT, pause_color, *self.pause_rect1])
+            elems.append([RECT, pause_color, *self.pause_rect2])
             self.pause_color = pause_color
 
         return elems
@@ -190,12 +191,12 @@ class PatternInfoText:
 
 
     def initialise(self):
-        elems = [["rect", themeing.BG_TASKPANE_HL, 0, 0, 79, self.sep * 6 + 2, 0],
-                 ["rect", themeing.BG_TASKPANE_HL, 0, 0, 79, self.sep * 6 + 2, 1, 0]]
+        elems = [[RECT, themeing.BG_TASKPANE_HL, 0, 0, 79, self.sep * 6 + 2, 0],
+                 [RECT, themeing.BG_TASKPANE_HL, 0, 0, 79, self.sep * 6 + 2, 1, 0]]
         font = "tracker_info_font"
         for i, itm in enumerate(["PTN", "BAR", "BPM", "REP", "SWG", "SCA"]):
             txt_col = themeing.info_items_colors[i]
-            elems.append(["text", font, txt_col, itm, 5, self.y + self.sep * i, 0])
+            elems.append([TEXT, font, txt_col, itm, 5, self.y + self.sep * i, 0])
 
         return elems
 
@@ -212,8 +213,8 @@ class PatternInfoText:
         for i, itm in enumerate(items):
             if itm != self.items[i]:
                 txt_col = themeing.info_items_colors[i]
-                elems.append(["rect", self.color, self.x, self.y + self.sep * i - 2, self.w - 6, self.sep - 2, 0])
-                elems.append(["text", font, txt_col, itm, self.x + 2, self.y + self.sep * i - 1, 0])
+                elems.append([RECT, self.color, self.x, self.y + self.sep * i - 2, self.w - 6, self.sep - 2, 0])
+                elems.append([TEXT, font, txt_col, itm, self.x + 2, self.y + self.sep * i - 1, 0])
                 self.items[i] = itm
 
         return elems
@@ -231,6 +232,10 @@ class PatternCell(UiComponent):
         self.y_screen = display.menu_height + (y * display.row_h)
         self.w = display.col_w
         self.h = display.row_h - 1
+        self.highlight_map = {"row selected in focus": (30, 30, 30),
+                              "track selected in focus": (12, 12, 6),
+                              "row selected not focused": (0, 12, 30),
+                              "track selected not focused": (0, 6, 8)}
 
         # components, line_bg_color, playhead_pos, cursor_arrows_color
         # top left cursor, top right, bottom left, bottom right
@@ -241,19 +246,19 @@ class PatternCell(UiComponent):
 
         state = self.get_state(pattern, step_index, track, track_index, playhead_step)
 
-        if self.is_dirty(state):
+        if self.dirtied(state):
             components, line_bg_color, playhead_pos, cursor_arrows_color, tl, tr, bl, br = state
             x, y, w, h = self.x_screen, self.y_screen + 2, self.w, self.h
 
-            render_queue.appendleft(["rect", line_bg_color, x, y, w + 1, h, 0])  # cell b]g
+            render_queue.appendleft([RECT, line_bg_color, x, y, w + 1, h, 0])  # cell bg
 
             if playhead_pos is not None:
                 y_pos = y + playhead_pos
-                render_queue.appendleft(["line", themeing.PLAYHEAD_COLOR, (x, y_pos), (x + w, y_pos), 2])
+                render_queue.appendleft([LINE, themeing.PLAYHEAD_COLOR, (x, y_pos), (x + w, y_pos), 2])
             if components:
                 offset = 8
                 for i, (component, color) in enumerate(components):  # step_text
-                    render_queue.appendleft(["text", "tracker_font", color, component, x + offset, y + 2, 0])
+                    render_queue.appendleft([TEXT, "tracker_font", color, component, x + offset, y + 2, 0])
                     offset += 29
 
             if tl or tr or bl or br:
@@ -283,14 +288,12 @@ class PatternCell(UiComponent):
 
         tl, tr, bl, br = self.get_selection_bounds(track_index, step_index)
         step, playhead_pos, components = None, None, []
-        line_bg_color = themeing.BG_PTN
+
         cursor_arrows_color = themeing.CURSOR_COLOR if self.parent.active else themeing.CURSOR_COLOR_ALT
 
         if pattern is None or step_index < 0 or step_index >= track.length:
-            if tl or tr or bl or br:
-                line_bg_color = themeing.CURSOR_EMPTY_PTN_AREA
-                tl = tr = bl = br = 0
-            step_state = (components, line_bg_color, playhead_pos, cursor_arrows_color, tl, tr, bl, br)
+            line_bg_color = themeing.CURSOR_EMPTY_PTN_AREA if (tl or tr or bl or br) else themeing.BG_PTN
+            step_state = (components, line_bg_color, playhead_pos, cursor_arrows_color, 0, 0, 0, 0)
         else:
             step = track.steps[step_index]
             components = step.get_display_text()
@@ -305,8 +308,7 @@ class PatternCell(UiComponent):
 
             if playhead_step == step_index:
                 ticks, ticks_per_step = track.ticks, track.ticks_per_step
-
-                playhead_pos = int((display.row_h - 1) * ((ticks % ticks_per_step) / ticks_per_step))
+                playhead_pos = int((display.row_h-2) * ((ticks % ticks_per_step) / ticks_per_step))
 
             step_state = (components, line_bg_color, playhead_pos, cursor_arrows_color, tl, tr, bl, br)
 
@@ -315,16 +317,8 @@ class PatternCell(UiComponent):
     def add_highlight(self, line_bg_color, track_index, step_index):
         def get_color(option):
             r, g, b = line_bg_color
-            if option == "row selected in focus":
-                new_color = (r + 30, g + 30, b)
-            elif option == "track selected in focus":
-                new_color = (r + 12, g + 12, b + 6)
-            elif option == "row selected not focused":
-                new_color = (r, g + 12, b + 30)
-            elif option == "track selected not focused":
-                new_color = (r, g + 6, b + 8)
-            else:
-                return line_bg_color
+            hl = self.highlight_map[option]
+            new_color = (r + hl[0], g + hl[1], b + hl[2])
             return new_color
 
         if self.parent.active:
@@ -346,19 +340,18 @@ class PatternCell(UiComponent):
         x, y, w, h = display_coords
         xt, xr, yt, yb = x, (x + w - 1), (y + 1), (y + h)
         line_horz, line_vert, b = display.cursor_arrow_w, display.cursor_arrow_h, display.cursor_arrow_b
-
         if tl:
-            queue.appendleft(["line", cursor_arrows_color, (xt, yt), (xt + line_horz, yt), b])
-            queue.appendleft(["line", cursor_arrows_color, (xt, yt), (xt, yt + line_vert), b])
+            queue.appendleft([LINE, cursor_arrows_color, (xt, yt), (xt + line_horz, yt), b])
+            queue.appendleft([LINE, cursor_arrows_color, (xt, yt), (xt, yt + line_vert), b])
         if tr:
-            queue.appendleft(["line", cursor_arrows_color, (xr + 1, yt), (xr + 1 - line_horz, yt), b])
-            queue.appendleft(["line", cursor_arrows_color, (xr, yt), (xr, yt + line_vert), b])
+            queue.appendleft([LINE, cursor_arrows_color, (xr + 1, yt), (xr + 1 - line_horz, yt), b])
+            queue.appendleft([LINE, cursor_arrows_color, (xr, yt), (xr, yt + line_vert), b])
         if bl:
-            queue.appendleft(["line", cursor_arrows_color, (xt, yb), (xt + line_horz, yb), b])
-            queue.appendleft(["line", cursor_arrows_color, (xt, yb), (xt, yb - line_vert), b])
+            queue.appendleft([LINE, cursor_arrows_color, (xt, yb), (xt + line_horz, yb), b])
+            queue.appendleft([LINE, cursor_arrows_color, (xt, yb), (xt, yb - line_vert), b])
         if br:
-            queue.appendleft(["line", cursor_arrows_color, (xr + 1, yb), (xr + 1 - line_horz, yb), b])
-            queue.appendleft(["line", cursor_arrows_color, (xr, yb), (xr, yb - line_vert), b])
+            queue.appendleft([LINE, cursor_arrows_color, (xr + 1, yb), (xr + 1 - line_horz, yb), b])
+            queue.appendleft([LINE, cursor_arrows_color, (xr, yb), (xr, yb - line_vert), b])
 
 
 class TimelineCell(UiComponent):
@@ -404,13 +397,13 @@ class RowNumberCell(UiComponent):
             outline = themeing.PLAYHEAD_COLOR if playhead_step == track_step_index else themeing.BLACK
             bg = themeing.CURSOR_COLOR if track_step_index in sel_rows else themeing.LINE_BG
 
-        if self.is_dirty([cell_text, text_color, outline, bg]):
+        if self.dirtied([cell_text, text_color, outline, bg]):
             x, y = self.x_screen, self.y_screen + 1
-            render_queue.appendleft(["rect", bg, x, y, display.row_labels_w, display.row_h, 0])
-            render_queue.appendleft(["rect", outline, x, y, display.row_labels_w, display.row_h, 1])
+            render_queue.appendleft([RECT, bg, x, y, display.row_labels_w, display.row_h, 0])
+            render_queue.appendleft([RECT, outline, x, y, display.row_labels_w, display.row_h, 1])
             if cell_text is not None:
                 offs = 5 if track_step_index < 100 else 1
-                render_queue.appendleft(["text", "tracker_row_label_font", text_color, cell_text, x + offs, y + 2, 0])
+                render_queue.appendleft([TEXT, "tracker_row_label_font", text_color, cell_text, x + offs, y + 2, 0])
             return 1
         return 0
 
@@ -430,24 +423,22 @@ class TrackBox(UiComponent):
         # text, outline_bg, main_bg, is_selected
         self.state = [None, None, None, False]
 
-    def check_for_state_change(self, track_index, page, pattern, sel_tracks, renderer): # curr_pulse, last_pulses
+    def check_for_state_change(self, track_index, page, pattern, sel_tracks, render_queue): # curr_pulse, last_pulses
         state = self.get_state(track_index, page, pattern, sel_tracks)  # , curr_pulse, last_pulses)
 
-        if self.is_dirty(state):
-            elems = []
+        if self.dirtied(state):
             display_txt, outline_bg, bg_col, selected = state
             x, y, w, h = self.x_screen, self.y_screen, display.col_w - 1, display.menu_height - 4
 
             # track bg
-            renderer.render_queue.appendleft(["rect", bg_col, x + 3, y + 5, w - 5, h - 7, 0])
-            renderer.render_queue.appendleft(["rect", outline_bg, x, y + 2, w, h - 3, 2])
+            render_queue.appendleft([RECT, bg_col, x + 3, y + 5, w - 5, h - 7, 0])
+            render_queue.appendleft([RECT, outline_bg, x, y + 2, w, h - 3, 2])
 
             start_x = x + display.col_w // 2  # Calculate the width of the text to center it correctly
-            w = renderer.get_text_width("track_display_font", (0, 0, 0), display_txt, 0, 0)
+            w = len(display_txt) * 7
             txt_col = outline_bg if not selected else (0, 0, 0)
-            renderer.render_queue.appendleft(["text", "track_display_font", txt_col,
-                                              display_txt, start_x - w // 2, 7, False, 0])
-            return elems
+            render_queue.appendleft([TEXT, "track_display_font", txt_col,
+                                     display_txt, start_x - w // 2, 7, False, 0])
 
     def get_state(self, track_index, page, pattern, sel_tracks): # , curr_pulse, last_pulses):
         outline_bg = themeing.TRACKBOX_HL
@@ -597,15 +588,15 @@ class OptionWindow:
             start_y = display.menu_height - 1
 
         movement_factor = 1 - self.start_animation // 4
-        self.renderer.render_queue.appendleft(["rect", (10, 20, 20), x + 2, start_y, w, options_height - 3 + (movement_factor * 3), 0])
+        self.renderer.render_queue.appendleft([RECT, (10, 20, 20), x + 2, start_y, w, options_height - 3 + (movement_factor * 3), 0])
 
         for i, option in enumerate(self.current_menu_page[1]):
             y = start_y + (i * rect_h)
             color = (255, 255, 255) if i != self.cursor_y else themeing.CURSOR_COLOR
             if ">" in option:
                 option = option.replace(">", " >")
-            self.renderer.render_queue.appendleft(["rect", color, x + 2, y + (movement_factor * i), w, rect_h - 1, 0])
-            self.renderer.render_queue.appendleft(["text", "options_font", (0, 0, 0), option, x + 4, y - 2 + (movement_factor * i), 0])
+            self.renderer.render_queue.appendleft([RECT, color, x + 2, y + (movement_factor * i), w, rect_h - 1, 0])
+            self.renderer.render_queue.appendleft([TEXT, "options_font", (0, 0, 0), option, x + 4, y - 2 + (movement_factor * i), 0])
 
         if self.start_animation > 0:
             self.start_animation = max(0, self.start_animation - 10)

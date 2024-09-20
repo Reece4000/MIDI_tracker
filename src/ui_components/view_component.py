@@ -1,8 +1,10 @@
-from config import events
+from config import events, constants, display, render_map, themeing
+
 
 class ViewComponent:
     def __init__(self, tracker):
         self.tracker = tracker
+        self.page_active_coords = None
         self.cursor_x = self.cursor_y = self.cursor_w = self.cursor_h = 0
         self.active = False
         self.state_changed = True
@@ -11,9 +13,15 @@ class ViewComponent:
         self.selected_tracks = self.get_selected_tracks()
         self.tracker.event_bus.subscribe(events.ALL_STATES_CHANGED, self.flag_state_change)
 
+    def toggle_active(self):
+        self.active = not self.active
+        if self.page_active_coords is not None:
+            color = themeing.LINE_16_HL_BG if not self.active else themeing.CURSOR_COLOR
+            self.tracker.renderer.render_queue.appendleft([render_map.RECT, color, *self.page_active_coords])
+        self.flag_state_change()
+
     def flag_state_change(self):
         self.selected_rows = self.get_selected_rows()
-        self.selected_tracks = self.get_selected_tracks()
         self.state_changed = True
 
     def handle_select(self):

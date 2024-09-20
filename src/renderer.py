@@ -3,6 +3,7 @@ from collections import deque
 from src.gui_elements import *
 from src.utils import timing_decorator, midi_to_note
 from config import constants, display, themeing, events
+from config.render_map import *
 import time
 
 class DetailWindow:
@@ -101,19 +102,17 @@ class Renderer:
     # @keep_time
     def render_element_from_queue(self):
         e = self.render_queue.pop()
-        if not isinstance(e, list):
-            pass
-            # print(e, "\n\n")
+
         try:
-            if e[0] == "fill":
+            if e[0] == FILL:
                 self.screen.fill(e[1])
 
-            elif e[0] == "line":
+            elif e[0] == LINE:
                 color, start, end, width = e[1], e[2], e[3], e[4]
                 l = pygame.draw.line(self.screen, color, start, end, width)
                 self.dirty_rects.append(l)
 
-            elif e[0] == "pane":
+            elif e[0] == PANE:
                 color, x, y, w, h, alpha = e[1], e[2], e[3], e[4], e[5], e[6]
                 key = (color, x, y, w, h)
                 if key not in self.pane_cache:
@@ -126,7 +125,7 @@ class Renderer:
 
                 self.screen.blit(pane, (x, y))
 
-            elif e[0] == "rect":
+            elif e[0] == RECT:
                 color, x, y, w, h, b = e[1], e[2], e[3], e[4], e[5], e[6]
                 try:
                     r = pygame.draw.rect(self.screen, color, (x, y, w, h), b)
@@ -134,7 +133,7 @@ class Renderer:
                 except:
                     print("error adding rect: ", color, x, y, w, h, b)
 
-            elif e[0] == "text":
+            elif e[0] == TEXT:
                 font, color, text, x, y, antialias = e[1], e[2], e[3], e[4], e[5], e[6]
                 key = (font, color, text, x, y)
 
@@ -146,12 +145,12 @@ class Renderer:
 
                 self.screen.blit(rendered_text, (x, y))
 
-            elif e[0] == "circle":
+            elif e[0] == CIRCLE:
                 color, center, radius, width = e[1], e[2], e[3], e[4]
                 c = pygame.draw.circle(self.screen, color, center, radius, width)
                 self.dirty_rects.append(c)
 
-            elif e[0] == "polygon":
+            elif e[0] == POLYGON:
                 color, points, b = e[1], e[2], e[3]
                 p = pygame.draw.polygon(self.screen, color, points, b)
                 self.dirty_rects.append(p)
@@ -163,22 +162,22 @@ class Renderer:
                 # user_input.get_text(self.screen, self.fonts[font], color)
                 # return user_input.inputted_text
 
-            elif e[0] == "image":
+            elif e[0] == IMAGE:
                 self.screen.blit(e[1], (e[2], e[3]))
         except IndexError:
             print(e)
 
     def initialise(self):
         # main bg
-        self.render_queue.appendleft(["rect", themeing.BG_PTN, 0, 0, self.screen_w, self.screen_h, 0])
+        self.render_queue.appendleft([RECT, themeing.BG_PTN, 0, 0, self.screen_w, self.screen_h, 0])
         # timeline bg
-        self.render_queue.appendleft(["rect", themeing.TIMELINE_BG, -1, 0, display.timeline_width, self.screen_h, 0])
+        self.render_queue.appendleft([RECT, themeing.TIMELINE_BG, -1, 0, display.timeline_width, self.screen_h, 0])
 
         grad = 90
         r, g, b = themeing.TIMELINE_BG
         for i in range(grad):
             block, color = i * 3, (r + grad, g + grad, b + grad)
-            self.render_queue.appendleft(["rect", color, 0, block - 5, display.timeline_width - 1, block, 0])
+            self.render_queue.appendleft([RECT, color, 0, block - 5, display.timeline_width - 1, block, 0])
             r, g, b = r - 1, g - 1, b - 1
 
         # self.render_queue.extendleft(self.play_pause_icon.initialise())
@@ -189,9 +188,9 @@ class Renderer:
         # x = win.x_pos
         # y = win.y_pos
 
-        # self.render_queue.appendleft(["rect", themeing.BG_SEP, x, y, win.w, win.h, 2])
-        # self.render_queue.appendleft(["rect", themeing.BG_COLOR, x + 2, y + 2, win.w - 4, win.h - 4, 0])
-        # self.render_queue.appendleft(["rect", themeing.LINE_16_HL_BG, x + 2, y + 2, 242, 36, 0])
+        # self.render_queue.appendleft([RECT, themeing.BG_SEP, x, y, win.w, win.h, 2])
+        # self.render_queue.appendleft([RECT, themeing.BG_COLOR, x + 2, y + 2, win.w - 4, win.h - 4, 0])
+        # self.render_queue.appendleft([RECT, themeing.LINE_16_HL_BG, x + 2, y + 2, 242, 36, 0])
 
         self.render_queue.extendleft(self.page_switch_cursor.initialise())
 
@@ -267,11 +266,11 @@ class Renderer:
 
         win = self.detail_window
         if self.state.page == 4:
-            self.render_queue.appendleft(["rect", themeing.CURSOR_COLOR, win.x_pos, win.y_pos, win.w, win.h, 2])
+            self.render_queue.appendleft([RECT, themeing.CURSOR_COLOR, win.x_pos, win.y_pos, win.w, win.h, 2])
         else:
-            self.render_queue.appendleft(["rect", themeing.LINE_16_HL_BG, win.x_pos, win.y_pos, win.w, win.h, 2])
+            self.render_queue.appendleft([RECT, themeing.LINE_16_HL_BG, win.x_pos, win.y_pos, win.w, win.h, 2])
 
-        self.render_queue.appendleft(["rect", themeing.BG_COLOR, win.x_pos + 2, win.y_pos + 2,
+        self.render_queue.appendleft([RECT, themeing.BG_COLOR, win.x_pos + 2, win.y_pos + 2,
                                       win.w - 4, display.detail_window_replace_bg_h, 0])
         zoom_x, zoom_y = self.state.detail_window_x, self.state.detail_window_y
         track = cursor_pattern.tracks[cursor_x]
@@ -280,19 +279,19 @@ class Renderer:
         else:
             step = None
 
-        self.render_queue.appendleft(["rect", themeing.LINE_16_HL_BG, win.x_pos + 2, win.y_pos + 2,
+        self.render_queue.appendleft([RECT, themeing.LINE_16_HL_BG, win.x_pos + 2, win.y_pos + 2,
                                       win.w - 4, display.detail_window_title_h, 0])
 
         tr = "M" if cursor_x == 0 else f"{cursor_x}"
         cursor_col = themeing.CURSOR_COLOR if self.state.page == 4 else themeing.BG_SEP
         text = f"TRK:{tr} STP:{cursor_y}" if step is not None else f"TRK:{tr} STP:--"
-        self.render_queue.appendleft(["text", "zoom_font", cursor_col, text, win.x_pos + 12, win.y_pos + 2, 0])
+        self.render_queue.appendleft([TEXT, "zoom_font", cursor_col, text, win.x_pos + 12, win.y_pos + 2, 0])
 
         start_y = 44
         x_pos = win.x_pos + 6
         if not track.is_master:
             if step is not None:
-                self.render_queue.appendleft(["text", "zoom_font", (100, 255, 100), "Notes:", x_pos + 4, start_y, 0])
+                self.render_queue.appendleft([TEXT, "zoom_font", (100, 255, 100), "Notes:", x_pos + 4, start_y, 0])
                 for i, note in enumerate(step.notes):
                     y = start_y + 30 + (29 * i)
                     if note is not None:
@@ -301,15 +300,15 @@ class Renderer:
                     else:
                         note_text = "---"
                         vel_text = "--"
-                    self.render_queue.appendleft(["text", "zoom_font", (100, 255, 100), note_text, x_pos + 4, y + 2, 0])
-                    self.render_queue.appendleft(["text", "zoom_font", (255, 150, 150), vel_text, x_pos + 77, y + 2, 0])
+                    self.render_queue.appendleft([TEXT, "zoom_font", (100, 255, 100), note_text, x_pos + 4, y + 2, 0])
+                    self.render_queue.appendleft([TEXT, "zoom_font", (255, 150, 150), vel_text, x_pos + 77, y + 2, 0])
                     if self.state.detail_window_y == i and zoom_x == 0:  # on note
-                        self.render_queue.appendleft(["rect", cursor_col, x_pos, y + 4, 56, 30, 2])
+                        self.render_queue.appendleft([RECT, cursor_col, x_pos, y + 4, 56, 30, 2])
                     elif self.state.detail_window_y == i and self.state.detail_window_x == 1:  # on vel
-                        self.render_queue.appendleft(["rect", cursor_col, x_pos + 70, y + 4, 48, 30, 2])
+                        self.render_queue.appendleft([RECT, cursor_col, x_pos + 70, y + 4, 48, 30, 2])
 
                 self.render_queue.appendleft(
-                    ["text", "zoom_font", (150, 255, 255), "Commands:", x_pos + 4, start_y + (29 * 4) + 36, 0])
+                    [TEXT, "zoom_font", (150, 255, 255), "Commands:", x_pos + 4, start_y + (29 * 4) + 36, 0])
                 for i, component in enumerate(step.components):
                     y = start_y + (29 * i) + 184
                     if component is not None:
@@ -317,16 +316,16 @@ class Renderer:
                     else:
                         elems = ["---", "--", "--"]
 
-                    self.render_queue.appendleft(["text", "zoom_font", (150, 255, 255), elems[0], x_pos + 4, y, 0])
-                    self.render_queue.appendleft(["text", "zoom_font", (255, 150, 255), elems[1], x_pos + 77, y, 0])
-                    self.render_queue.appendleft(["text", "zoom_font", (255, 255, 150), elems[2], x_pos + 134, y, 0])
+                    self.render_queue.appendleft([TEXT, "zoom_font", (150, 255, 255), elems[0], x_pos + 4, y, 0])
+                    self.render_queue.appendleft([TEXT, "zoom_font", (255, 150, 255), elems[1], x_pos + 77, y, 0])
+                    self.render_queue.appendleft([TEXT, "zoom_font", (255, 255, 150), elems[2], x_pos + 134, y, 0])
 
                     if self.state.detail_window_y == i + 4 and self.state.detail_window_x == 0:  # on component
-                        self.render_queue.appendleft(["rect", cursor_col, x_pos, y + 2, 56, 30, 2])
+                        self.render_queue.appendleft([RECT, cursor_col, x_pos, y + 2, 56, 30, 2])
                     elif self.state.detail_window_y == i + 4 and self.state.detail_window_x == 1:  # on p1
-                        self.render_queue.appendleft(["rect", cursor_col, x_pos + 70, y + 2, 48, 30, 2])
+                        self.render_queue.appendleft([RECT, cursor_col, x_pos + 70, y + 2, 48, 30, 2])
                     elif self.state.detail_window_y == i + 4 and self.state.detail_window_x == 2:  # on p2
-                        self.render_queue.appendleft(["rect", cursor_col, x_pos + 127, y + 2, 48, 30, 2])
+                        self.render_queue.appendleft([RECT, cursor_col, x_pos + 127, y + 2, 48, 30, 2])
 
                 y = start_y + 306
 
@@ -343,21 +342,21 @@ class Renderer:
                     cc_color, val_col = (255, 255, 80), (255, 180, 255)
 
                     self.render_queue.appendleft(
-                        ["text", "tracker_font", (200, 200, 255), f"CC:", x_pos + 8, y + (26 * i) + 13, 0])
+                        [TEXT, "tracker_font", (200, 200, 255), f"CC:", x_pos + 8, y + (26 * i) + 13, 0])
 
-                    self.render_queue.appendleft(["text", "zoom_font", cc_color, f"{cc}", x_pos + 52, y + (26 * i) + 4, 0])
-                    self.render_queue.appendleft(["text", "zoom_font", val_col, f"{val}", x_pos + 120, y + (26 * i) + 4, 0])
+                    self.render_queue.appendleft([TEXT, "zoom_font", cc_color, f"{cc}", x_pos + 52, y + (26 * i) + 4, 0])
+                    self.render_queue.appendleft([TEXT, "zoom_font", val_col, f"{val}", x_pos + 120, y + (26 * i) + 4, 0])
 
                     if self.state.detail_window_y == i + 8:  # col 1
                         if self.state.detail_window_x == 0:
-                            self.render_queue.appendleft(["rect", cursor_col, x_pos + 48, y + (26 * i) + 4, 56, 30, 2])
+                            self.render_queue.appendleft([RECT, cursor_col, x_pos + 48, y + (26 * i) + 4, 56, 30, 2])
                         elif self.state.detail_window_x == 1:
-                            self.render_queue.appendleft(["rect", cursor_col, x_pos + 117, y + (26 * i) + 4, 56, 30, 2])
+                            self.render_queue.appendleft([RECT, cursor_col, x_pos + 117, y + (26 * i) + 4, 56, 30, 2])
 
                 p_x, p_y = x_pos + 192, y + 90
-                self.render_queue.appendleft(["polygon", themeing.WHITE, ((p_x, p_y), (p_x + 5, p_y - 5), (p_x + 10, p_y)), 0])
+                self.render_queue.appendleft([POLYGON, themeing.WHITE, ((p_x, p_y), (p_x + 5, p_y - 5), (p_x + 10, p_y)), 0])
                 self.render_queue.appendleft(
-                    ["polygon", themeing.WHITE, ((p_x, p_y + 20), (p_x + 5, p_y + 25), (p_x + 10, p_y + 20)), 0])
+                    [POLYGON, themeing.WHITE, ((p_x, p_y + 20), (p_x + 5, p_y + 25), (p_x + 10, p_y + 20)), 0])
 
         self.state.view_changed["detail window"] = False
 
@@ -442,11 +441,11 @@ class Renderer:
             cursor = song_cursor if i in [0, 2] else phrase_cursor
             cond = (mid < cursor < timeline_length - mid)
 
-            if arrow.is_dirty([cond]):
+            if arrow.dirtied([cond]):
                 num_dirties += 1
                 col = themeing.CURSOR_COLOR if cond else themeing.TIMELINE_BG
                 print("adding", col, song_cursor, phrase_cursor)
-                self.render_queue.appendleft(["polygon", col, arrow.points, 1])
+                self.render_queue.appendleft([POLYGON, col, arrow.points, 1])
 
         return num_dirties
 
@@ -472,16 +471,16 @@ class Renderer:
 
             for item in cell_states:
                 cell, cell_state = item[0], item[1]
-                if cell.is_dirty(cell_state):
+                if cell.dirtied(cell_state):
                     num_dirties += 1
                     text, text_color, cursor, bg = cell_state
                     x, y = cell.x_screen, cell.y_screen + display.timeline_offset
                     self.render_queue.appendleft(
-                        ["rect", cursor, x - 2, y + 1, display.timeline_cell_w, display.timeline_cell_h, 1])
+                        [RECT, cursor, x - 2, y + 1, display.timeline_cell_w, display.timeline_cell_h, 1])
                     self.render_queue.appendleft(
-                        ["rect", bg, x, y + 3, display.timeline_cell_w - 4, display.timeline_cell_h - 4, 0])
+                        [RECT, bg, x, y + 3, display.timeline_cell_w - 4, display.timeline_cell_h - 4, 0])
                     if text is not None:
-                        self.render_queue.appendleft(["text", "tracker_timeline_font", text_color, text, x + 1, y + 2, 0])
+                        self.render_queue.appendleft([TEXT, "tracker_timeline_font", text_color, text, x + 1, y + 2, 0])
 
         self.song_track_state_changed = self.phrase_track_state_changed = False
 

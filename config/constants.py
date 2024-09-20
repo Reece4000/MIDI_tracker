@@ -1,9 +1,11 @@
 note_base_names = ['C-', 'C#', 'D-', 'D#', 'E-', 'F-', 'F#', 'G-', 'G#', 'A-', 'A#', 'B-', 'OFF']
 track_names = ["1", "2", "3", "4", "5", "6", "7", "8"]
 
+center_y_cursor = True
+
 start_bpm = 170
-start_len = 32
-start_lpb = 8
+start_len = 64
+start_lpb = 32
 start_swing = 0
 
 track_count = 8
@@ -18,8 +20,6 @@ note_off = [-1, -1, -1, -1]
 empty = [None, None, None, None]
 empty_components = [[None, None, None], [None, None, None], [None, None, None], [None, None, None]]
 
-
-                       
 page_map = {"song": 0, "phrase": 1, "master": 2, "pattern": 3, "detail": 4}
 
 master_component_mapping = {

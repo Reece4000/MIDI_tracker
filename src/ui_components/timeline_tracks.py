@@ -1,7 +1,10 @@
 from config import constants, display, themeing, events
+from config.render_map import *
+from config.pages import *
+from config.constants import max_patterns
+
 from src.ui_components.view_component import ViewComponent
 from src.gui_elements import TimelineCell, TimelineArrow
-from config.constants import max_patterns, page_map as pmap
 
 
 class TimelineTrack(ViewComponent):
@@ -34,9 +37,9 @@ class TimelineTrack(ViewComponent):
         mid = display.num_timeline_rows // 2 - 1
         for i, arrow in enumerate(self.timeline_arrows):
             cond = (mid < self.cursor_y < timeline_length - mid)
-            if arrow.is_dirty([cond]):
+            if arrow.dirtied([cond]):
                 col = themeing.CURSOR_COLOR if cond else themeing.TIMELINE_BG
-                render_queue.appendleft(["polygon", col, arrow.points, 1])
+                render_queue.appendleft([POLYGON, col, arrow.points, 1])
 
     def get_timeline_step_state(self, y):
         assert self.type is not None
@@ -59,7 +62,7 @@ class TimelineTrack(ViewComponent):
                 condition = (step_index == self.tracker.song_playhead and self.tracker.is_playing)
             elif self.type == "phrase":
                 condition = (step_index == self.tracker.phrase_playhead and self.tracker.is_playing and
-                             self.tracker.pages[pmap["song"]].cursor_y == self.tracker.song_playhead)
+                             self.tracker.pages[SONG].cursor_y == self.tracker.song_playhead)
             else:
                 condition = False
 
@@ -83,14 +86,14 @@ class TimelineTrack(ViewComponent):
             cell = self.cells[y]
             state = self.get_timeline_step_state(y)
 
-            if cell.is_dirty(state):
+            if cell.dirtied(state):
                 text, text_color, cursor, bg = state
                 x, y = cell.x_screen, cell.y_screen + display.timeline_offset
                 w, h = display.timeline_cell_w, display.timeline_cell_h
-                render_queue.appendleft(["rect", cursor, x - 2, y + 1, w, h, 1])
-                render_queue.appendleft(["rect", bg, x, y + 3, w - 4, h - 4, 0])
+                render_queue.appendleft([RECT, cursor, x - 2, y + 1, w, h, 1])
+                render_queue.appendleft([RECT, bg, x, y + 3, w - 4, h - 4, 0])
                 if text is not None:
-                    render_queue.appendleft(["text", "tracker_timeline_font", text_color, text, x + 1, y + 2, 0])
+                    render_queue.appendleft([TEXT, "tracker_timeline_font", text_color, text, x + 1, y + 2, 0])
     
     def handle_param_adjust(self, increment):
         self.tracker.event_bus.publish(events.ALL_STATES_CHANGED)
@@ -110,6 +113,7 @@ class TimelineTrack(ViewComponent):
 class SongTrack(TimelineTrack):
     def __init__(self, tracker):
         super().__init__(tracker)
+        self.page_active_coords = display.song_page_border
         self.type = "song"
         self.cells = [TimelineCell(10, y) for y in range(display.num_timeline_rows)]
         self.timeline_arrows = [TimelineArrow(display.song_arrow_upper),
@@ -150,6 +154,7 @@ class SongTrack(TimelineTrack):
 class PhraseTrack(TimelineTrack):
     def __init__(self, tracker):
         super().__init__(tracker)
+        self.page_active_coords = display.phrase_page_border
         self.type = "phrase"
         self.cells = [TimelineCell(47, y) for y in range(display.num_timeline_rows)]
         self.timeline_arrows = [TimelineArrow(display.phrase_arrow_upper),

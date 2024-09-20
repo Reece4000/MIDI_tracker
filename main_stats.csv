@@ -1,0 +1,330 @@
+Tue Sep 17 23:47:03 2024    main_stats
+
+         373926 function calls (373738 primitive calls) in 3.457 seconds
+
+   Ordered by: cumulative time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+      2/1    0.000    0.000    3.457    3.457 {built-in method builtins.exec}
+        1    0.000    0.000    3.457    3.457 <string>:1(<module>)
+        1    0.000    0.000    3.457    3.457 main.py:60(main)
+        1    0.001    0.001    3.309    3.309 tracker.py:107(running_loop)
+      190    2.783    0.015    2.783    0.015 {built-in method time.sleep}
+  546/364    0.001    0.000    0.400    0.001 utils.py:36(wrapper)
+      182    0.001    0.000    0.399    0.002 tracker.py:128(update_view_states)
+      364    0.000    0.000    0.184    0.001 renderer.py:215(update_screen)
+      364    0.183    0.001    0.183    0.001 {built-in method pygame.display.update}
+        1    0.000    0.000    0.148    0.148 tracker.py:46(__init__)
+      364    0.006    0.000    0.123    0.000 renderer.py:221(process_queue)
+    33265    0.028    0.000    0.117    0.000 renderer.py:103(render_element_from_queue)
+      372    0.001    0.000    0.107    0.000 tracker.py:430(handle_events)
+      372    0.002    0.000    0.106    0.000 input_handler.py:74(check_for_events)
+      372    0.099    0.000    0.099    0.000 {built-in method pygame.event.get}
+        1    0.000    0.000    0.082    0.082 input_handler.py:13(__init__)
+        1    0.081    0.081    0.081    0.081 {built-in method pygame.joystick.init}
+      182    0.001    0.000    0.073    0.000 pattern_view.py:423(update_view)
+      182    0.017    0.000    0.059    0.000 pattern_view.py:397(update_pattern_view)
+    10440    0.055    0.000    0.055    0.000 {built-in method pygame.draw.rect}
+    17280    0.014    0.000    0.044    0.000 gui_elements.py:245(check_for_state_change)
+        1    0.033    0.033    0.034    0.034 midi_handler.py:10(__init__)
+        1    0.002    0.002    0.030    0.030 renderer.py:18(__init__)
+    17280    0.015    0.000    0.024    0.000 gui_elements.py:287(get_state)
+        1    0.024    0.024    0.024    0.024 {built-in method pygame.display.set_mode}
+        1    0.000    0.000    0.019    0.019 tracker.py:137(quit)
+    21885    0.018    0.000    0.018    0.000 {method 'blit' of 'pygame.surface.Surface' objects}
+        1    0.006    0.006    0.017    0.017 renderer.py:77(quit)
+      182    0.000    0.000    0.012    0.000 master_view.py:129(update_view)
+     1675    0.012    0.000    0.012    0.000 {method 'render' of 'pygame.font.Font' objects}
+        1    0.009    0.009    0.011    0.011 {built-in method pygame.base.quit}
+      182    0.003    0.000    0.011    0.000 master_view.py:104(update_pattern_view)
+      182    0.003    0.000    0.010    0.000 pattern_view.py:376(update_row_number_view)
+    58240    0.007    0.000    0.007    0.000 pattern_view.py:10(get_pattern_index)
+     5824    0.005    0.000    0.006    0.000 gui_elements.py:389(check_for_state_change)
+    24968    0.006    0.000    0.006    0.000 gui_elements.py:13(is_dirty)
+     1638    0.001    0.000    0.004    0.000 gui_elements.py:427(check_for_state_change)
+    13338    0.003    0.000    0.004    0.000 gui_elements.py:318(add_highlight)
+    17280    0.003    0.000    0.003    0.000 gui_elements.py:270(get_selection_bounds)
+      182    0.001    0.000    0.003    0.000 info_pane.py:22(update_view)
+       59    0.001    0.000    0.002    0.000 input_handler.py:295(handle_keys)
+      372    0.001    0.000    0.002    0.000 input_handler.py:126(update_modifiers_state)
+     1638    0.002    0.000    0.002    0.000 gui_elements.py:446(get_state)
+      182    0.002    0.000    0.002    0.000 editor_window.py:161(update_view)
+        1    0.002    0.002    0.002    0.002 {built-in method pygame.display.init}
+    11856    0.002    0.000    0.002    0.000 steps.py:116(get_display_text)
+    33188    0.002    0.000    0.002    0.000 {method 'appendleft' of 'collections.deque' objects}
+      182    0.001    0.000    0.002    0.000 gui_elements.py:203(check_for_state_change)
+    33265    0.002    0.000    0.002    0.000 {method 'pop' of 'collections.deque' objects}
+    33333    0.002    0.000    0.002    0.000 {built-in method builtins.isinstance}
+        6    0.002    0.000    0.002    0.000 {method 'acquire' of '_thread.lock' objects}
+      2/1    0.000    0.000    0.002    0.002 <frozen importlib._bootstrap>:1002(_find_and_load)
+      2/1    0.000    0.000    0.001    0.001 <frozen importlib._bootstrap>:967(_find_and_load_unlocked)
+        1    0.000    0.000    0.001    0.001 sequencer.py:73(stop)
+        1    0.000    0.000    0.001    0.001 threading.py:1001(join)
+        1    0.000    0.000    0.001    0.001 threading.py:1039(_wait_for_tstate_lock)
+      2/1    0.000    0.000    0.001    0.001 <frozen importlib._bootstrap>:659(_load_unlocked)
+        1    0.000    0.000    0.001    0.001 <frozen importlib._bootstrap_external>:784(exec_module)
+        1    0.001    0.001    0.001    0.001 {built-in method pygame.image.load}
+       59    0.000    0.000    0.001    0.000 tracker.py:387(move_cursor)
+        9    0.000    0.000    0.001    0.000 renderer.py:199(get_text_width)
+       30    0.000    0.000    0.001    0.000 input_handler.py:184(handle_down)
+       59    0.000    0.000    0.001    0.000 pattern_view.py:244(move_cursor)
+        1    0.000    0.000    0.001    0.001 pattern_view.py:16(__init__)
+    11468    0.001    0.000    0.001    0.000 {method 'append' of 'list' objects}
+        1    0.000    0.000    0.001    0.001 pattern_view.py:25(<listcomp>)
+      372    0.001    0.000    0.001    0.000 input_handler.py:398(handle_joy_repeat)
+     1885    0.001    0.000    0.001    0.000 {built-in method builtins.max}
+     3057    0.001    0.000    0.001    0.000 gui_elements.py:319(get_color)
+      744    0.001    0.000    0.001    0.000 {method 'get_button' of 'pygame.joystick.Joystick' objects}
+      288    0.001    0.000    0.001    0.000 gui_elements.py:224(__init__)
+     1482    0.001    0.000    0.001    0.000 steps.py:159(get_display_text)
+      3/1    0.000    0.000    0.001    0.001 <frozen importlib._bootstrap>:220(_call_with_frames_removed)
+        1    0.000    0.000    0.001    0.001 freetype.py:1(<module>)
+        1    0.001    0.001    0.001    0.001 {built-in method pygame.display.set_icon}
+        2    0.000    0.000    0.001    0.000 <frozen importlib._bootstrap>:558(module_from_spec)
+       29    0.000    0.000    0.001    0.000 input_handler.py:170(handle_up)
+        1    0.000    0.000    0.001    0.001 <frozen importlib._bootstrap_external>:1106(create_module)
+        1    0.001    0.001    0.001    0.001 {built-in method _imp.create_dynamic}
+        1    0.001    0.001    0.001    0.001 midi_handler.py:19(initialise_midi)
+      784    0.001    0.000    0.001    0.000 {built-in method pygame.draw.line}
+       37    0.001    0.000    0.001    0.000 {built-in method builtins.print}
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:856(get_code)
+      182    0.000    0.000    0.000    0.000 {built-in method builtins.round}
+        1    0.000    0.000    0.000    0.000 pattern.py:5(__init__)
+       59    0.000    0.000    0.000    0.000 pattern_view.py:38(flag_state_change)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:976(get_data)
+        1    0.000    0.000    0.000    0.000 pattern.py:13(<listcomp>)
+        8    0.000    0.000    0.000    0.000 tracks.py:124(__init__)
+        1    0.000    0.000    0.000    0.000 input_handler.py:41(<listcomp>)
+        2    0.000    0.000    0.000    0.000 {built-in method pygame.joystick.Joystick}
+        1    0.000    0.000    0.000    0.000 {built-in method io.open_code}
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:901(_find_spec)
+        1    0.000    0.000    0.000    0.000 pkgdata.py:45(getResource)
+     1820    0.000    0.000    0.000    0.000 pattern_view.py:384(<genexpr>)
+        6    0.000    0.000    0.000    0.000 {built-in method nt.stat}
+      182    0.000    0.000    0.000    0.000 gui_elements.py:113(check_for_state_change)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1341(find_spec)
+       59    0.000    0.000    0.000    0.000 main.py:29(publish)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1309(_get_spec)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1438(find_spec)
+        1    0.000    0.000    0.000    0.000 sequencer.py:39(__init__)
+        8    0.000    0.000    0.000    0.000 tracks.py:130(<listcomp>)
+     1482    0.000    0.000    0.000    0.000 steps.py:160(<listcomp>)
+        5    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:80(_path_stat)
+       62    0.000    0.000    0.000    0.000 gui_elements.py:338(draw_cell_cursor)
+       60    0.000    0.000    0.000    0.000 pattern_view.py:279(get_selected_rows)
+      256    0.000    0.000    0.000    0.000 steps.py:25(__init__)
+      366    0.000    0.000    0.000    0.000 timeline_tracks.py:102(update_view)
+        1    0.000    0.000    0.000    0.000 __init__.py:1131(resource_exists)
+       59    0.000    0.000    0.000    0.000 view_component.py:14(flag_state_change)
+      372    0.000    0.000    0.000    0.000 tracker.py:401(deactivate_editor_window)
+        1    0.000    0.000    0.000    0.000 threading.py:855(start)
+        1    0.000    0.000    0.000    0.000 timeline_tracks.py:114(__init__)
+      372    0.000    0.000    0.000    0.000 {built-in method pygame.key.get_mods}
+      182    0.000    0.000    0.000    0.000 gui_elements.py:160(check_for_state_change)
+        2    0.000    0.000    0.000    0.000 __init__.py:353(get_provider)
+        1    0.000    0.000    0.000    0.000 threading.py:556(wait)
+       64    0.000    0.000    0.000    0.000 view_component.py:65(get_selected_rows)
+        1    0.000    0.000    0.000    0.000 threading.py:280(wait)
+     1092    0.000    0.000    0.000    0.000 {built-in method time.time}
+        2    0.000    0.000    0.000    0.000 __init__.py:1593(__init__)
+      123    0.000    0.000    0.000    0.000 {built-in method pygame.draw.polygon}
+       60    0.000    0.000    0.000    0.000 pattern_view.py:273(get_selected_tracks)
+      927    0.000    0.000    0.000    0.000 {method 'items' of 'dict' objects}
+      745    0.000    0.000    0.000    0.000 {built-in method time.perf_counter}
+       59    0.000    0.000    0.000    0.000 editor_window.py:154(render_key_hints)
+        1    0.000    0.000    0.000    0.000 __init__.py:1147(resource_stream)
+        9    0.000    0.000    0.000    0.000 tracks.py:9(__init__)
+        2    0.000    0.000    0.000    0.000 timeline_tracks.py:82(draw_track)
+        1    0.000    0.000    0.000    0.000 midi_handler.py:37(send_midi_stop)
+        2    0.000    0.000    0.000    0.000 __init__.py:1597(_setup_prefix)
+        1    0.000    0.000    0.000    0.000 tracks.py:213(__init__)
+        2    0.000    0.000    0.000    0.000 {built-in method builtins.next}
+       24    0.000    0.000    0.000    0.000 ntpath.py:180(split)
+        1    0.000    0.000    0.000    0.000 timeline_tracks.py:154(__init__)
+        9    0.000    0.000    0.000    0.000 tracks.py:17(<listcomp>)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:99(_path_isfile)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:90(_path_is_mode_type)
+      256    0.000    0.000    0.000    0.000 steps.py:92(has_mod)
+        1    0.000    0.000    0.000    0.000 __init__.py:1403(has_resource)
+       24    0.000    0.000    0.000    0.000 __init__.py:1579(_parents)
+      576    0.000    0.000    0.000    0.000 steps.py:6(__init__)
+        1    0.000    0.000    0.000    0.000 {built-in method pygame.display.set_caption}
+      374    0.000    0.000    0.000    0.000 gui_elements.py:8(__init__)
+      287    0.000    0.000    0.000    0.000 {built-in method builtins.min}
+        1    0.000    0.000    0.000    0.000 tracks.py:216(<listcomp>)
+        1    0.000    0.000    0.000    0.000 master_view.py:16(__init__)
+        1    0.000    0.000    0.000    0.000 __init__.py:1622(get_resource_stream)
+        1    0.000    0.000    0.000    0.000 timeline_tracks.py:117(<listcomp>)
+       32    0.000    0.000    0.000    0.000 steps.py:142(__init__)
+        1    0.000    0.000    0.000    0.000 renderer.py:172(initialise)
+      256    0.000    0.000    0.000    0.000 steps.py:120(<listcomp>)
+      256    0.000    0.000    0.000    0.000 steps.py:119(<listcomp>)
+        1    0.000    0.000    0.000    0.000 __init__.py:1613(_has)
+       40    0.000    0.000    0.000    0.000 timeline_tracks.py:44(get_timeline_step_state)
+        1    0.000    0.000    0.000    0.000 genericpath.py:16(exists)
+        5    0.000    0.000    0.000    0.000 view_component.py:4(__init__)
+        1    0.000    0.000    0.000    0.000 {built-in method pygame.font.init}
+        1    0.000    0.000    0.000    0.000 {built-in method io.open}
+        1    0.000    0.000    0.000    0.000 tracker.py:52(<listcomp>)
+        1    0.000    0.000    0.000    0.000 info_pane.py:8(__init__)
+        1    0.000    0.000    0.000    0.000 tracker.py:93(<listcomp>)
+        1    0.000    0.000    0.000    0.000 master_view.py:19(<listcomp>)
+       59    0.000    0.000    0.000    0.000 gui_elements.py:35(check_for_state_change)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:486(_init_module_attrs)
+       33    0.000    0.000    0.000    0.000 {built-in method pygame.draw.circle}
+       30    0.000    0.000    0.000    0.000 ntpath.py:124(splitdrive)
+        1    0.000    0.000    0.000    0.000 {method 'read' of '_io.BufferedReader' objects}
+       40    0.000    0.000    0.000    0.000 gui_elements.py:359(__init__)
+        1    0.000    0.000    0.000    0.000 main.py:50(print_timings)
+      182    0.000    0.000    0.000    0.000 master_view.py:84(update_row_number_view)
+        2    0.000    0.000    0.000    0.000 timeline_tracks.py:11(__init__)
+        1    0.000    0.000    0.000    0.000 tracker.py:53(<listcomp>)
+        2    0.000    0.000    0.000    0.000 __init__.py:1390(__init__)
+        2    0.000    0.000    0.000    0.000 __init__.py:1487(_fn)
+       32    0.000    0.000    0.000    0.000 gui_elements.py:380(__init__)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:156(__enter__)
+        1    0.000    0.000    0.000    0.000 threading.py:777(__init__)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1017(path_stats)
+       59    0.000    0.000    0.000    0.000 tracker.py:359(get_selected_track)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:585(_compile_bytecode)
+        2    0.000    0.000    0.000    0.000 ntpath.py:221(dirname)
+        1    0.000    0.000    0.000    0.000 {built-in method _thread.start_new_thread}
+        1    0.000    0.000    0.000    0.000 info_pane.py:16(initialise)
+       60    0.000    0.000    0.000    0.000 pattern_view.py:283(<listcomp>)
+       59    0.000    0.000    0.000    0.000 tracker.py:351(get_selected_step)
+        1    0.000    0.000    0.000    0.000 tracker.py:51(<listcomp>)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:166(_get_module_lock)
+        3    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:385(cached)
+        1    0.000    0.000    0.000    0.000 timeline_tracks.py:157(<listcomp>)
+        1    0.000    0.000    0.000    0.000 {built-in method marshal.loads}
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:301(cache_from_source)
+        1    0.000    0.000    0.000    0.000 threading.py:535(set)
+       14    0.000    0.000    0.000    0.000 main.py:24(subscribe)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:431(_get_cached)
+        1    0.000    0.000    0.000    0.000 editor_window.py:10(__init__)
+        2    0.000    0.000    0.000    0.000 __init__.py:1493(_validate_resource_path)
+        2    0.000    0.000    0.000    0.000 threading.py:521(__init__)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1433(_get_spec)
+        6    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:62(_path_join)
+       22    0.000    0.000    0.000    0.000 __init__.py:2371(_is_egg_path)
+       64    0.000    0.000    0.000    0.000 view_component.py:69(<listcomp>)
+       60    0.000    0.000    0.000    0.000 pattern_view.py:277(<listcomp>)
+        1    0.000    0.000    0.000    0.000 {method '__exit__' of '_io._IOBase' objects}
+        9    0.000    0.000    0.000    0.000 {built-in method _thread.allocate_lock}
+        2    0.000    0.000    0.000    0.000 threading.py:228(__init__)
+       18    0.000    0.000    0.000    0.000 {built-in method pygame.mouse.get_pressed}
+        1    0.000    0.000    0.000    0.000 gui_elements.py:148(initialise)
+        1    0.000    0.000    0.000    0.000 threading.py:966(_stop)
+        2    0.000    0.000    0.000    0.000 __init__.py:3167(_find_adapter)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:58(__init__)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:636(spec_from_file_location)
+        4    0.000    0.000    0.000    0.000 view_component.py:59(get_selected_tracks)
+        2    0.000    0.000    0.000    0.000 ntpath.py:77(join)
+        9    0.000    0.000    0.000    0.000 gui_elements.py:413(__init__)
+       20    0.000    0.000    0.000    0.000 {built-in method builtins.getattr}
+        2    0.000    0.000    0.000    0.000 timeline_tracks.py:34(draw_arrows)
+        1    0.000    0.000    0.000    0.000 pattern_view.py:24(<listcomp>)
+        1    0.000    0.000    0.000    0.000 threading.py:374(notify_all)
+        1    0.000    0.000    0.000    0.000 midi_handler.py:51(all_notes_off)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:68(_path_split)
+        1    0.000    0.000    0.000    0.000 gui_elements.py:193(initialise)
+        6    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:64(<listcomp>)
+        2    0.000    0.000    0.000    0.000 ntpath.py:61(isabs)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:500(_classify_pyc)
+        3    0.000    0.000    0.000    0.000 threading.py:259(__exit__)
+        7    0.000    0.000    0.000    0.000 input_handler.py:424(handle_joystick_event)
+        1    0.000    0.000    0.000    0.000 gui_elements.py:63(__init__)
+        3    0.000    0.000    0.000    0.000 threading.py:256(__enter__)
+        1    0.000    0.000    0.000    0.000 threading.py:546(clear)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:160(__exit__)
+       26    0.000    0.000    0.000    0.000 ntpath.py:34(_get_bothseps)
+        8    0.000    0.000    0.000    0.000 {method 'extendleft' of 'collections.deque' objects}
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:87(acquire)
+        3    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:51(_unpack_uint32)
+        1    0.000    0.000    0.000    0.000 threading.py:351(notify)
+       38    0.000    0.000    0.000    0.000 {method 'rstrip' of 'str' objects}
+        2    0.000    0.000    0.000    0.000 posixpath.py:60(isabs)
+        2    0.000    0.000    0.000    0.000 threading.py:1318(current_thread)
+        1    0.000    0.000    0.000    0.000 gui_elements.py:128(__init__)
+       63    0.000    0.000    0.000    0.000 {built-in method builtins.len}
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:112(release)
+       25    0.000    0.000    0.000    0.000 {method 'endswith' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 gui_elements.py:71(initialise)
+        1    0.000    0.000    0.000    0.000 tracker.py:84(<listcomp>)
+        1    0.000    0.000    0.000    0.000 _weakrefset.py:82(add)
+        1    0.000    0.000    0.000    0.000 input_handler.py:27(<dictcomp>)
+        1    0.000    0.000    0.000    0.000 gui_elements.py:23(__init__)
+       32    0.000    0.000    0.000    0.000 {method 'replace' of 'str' objects}
+       64    0.000    0.000    0.000    0.000 {built-in method nt.fspath}
+        4    0.000    0.000    0.000    0.000 gui_elements.py:371(__init__)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:36(_relax_case)
+        1    0.000    0.000    0.000    0.000 gui_elements.py:98(__init__)
+        1    0.000    0.000    0.000    0.000 gui_elements.py:182(__init__)
+        9    0.000    0.000    0.000    0.000 {method '__exit__' of '_thread.lock' objects}
+        6    0.000    0.000    0.000    0.000 {built-in method builtins.hasattr}
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:533(_validate_timestamp_pyc)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:811(find_spec)
+       10    0.000    0.000    0.000    0.000 {method 'rpartition' of 'str' objects}
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:351(__init__)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1114(exec_module)
+        9    0.000    0.000    0.000    0.000 {method 'get_width' of 'pygame.surface.Surface' objects}
+        6    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:874(__enter__)
+        6    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:878(__exit__)
+       10    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:231(_verbose_message)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:185(cb)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:398(parent)
+        1    0.000    0.000    0.000    0.000 midi_handler.py:16(<listcomp>)
+        2    0.000    0.000    0.000    0.000 threading.py:271(_is_owned)
+        1    0.000    0.000    0.000    0.000 {built-in method pygame.joystick.get_count}
+       22    0.000    0.000    0.000    0.000 {method 'lower' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 {built-in method pygame.key.set_repeat}
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1272(_path_importer_cache)
+        1    0.000    0.000    0.000    0.000 threading.py:1189(_make_invoke_excepthook)
+        8    0.000    0.000    0.000    0.000 {method 'join' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 threading.py:750(_newname)
+        2    0.000    0.000    0.000    0.000 threading.py:1107(daemon)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:152(__init__)
+        1    0.000    0.000    0.000    0.000 pattern.py:41(set_swing)
+        2    0.000    0.000    0.000    0.000 {built-in method builtins.setattr}
+        9    0.000    0.000    0.000    0.000 tracks.py:31(get_step_pos)
+        3    0.000    0.000    0.000    0.000 {method '__enter__' of '_thread.lock' objects}
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:946(__init__)
+        2    0.000    0.000    0.000    0.000 inspect.py:488(getmro)
+        1    0.000    0.000    0.000    0.000 input_handler.py:31(<dictcomp>)
+        6    0.000    0.000    0.000    0.000 {built-in method _thread.get_ident}
+       10    0.000    0.000    0.000    0.000 {built-in method _imp.acquire_lock}
+       10    0.000    0.000    0.000    0.000 {built-in method _imp.release_lock}
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:463(_check_name_wrapper)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1095(__init__)
+        1    0.000    0.000    0.000    0.000 threading.py:265(_release_save)
+        2    0.000    0.000    0.000    0.000 {built-in method _imp.is_frozen}
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:35(_new_module)
+        4    0.000    0.000    0.000    0.000 {method 'split' of 'str' objects}
+        2    0.000    0.000    0.000    0.000 __init__.py:3157(_always_object)
+        2    0.000    0.000    0.000    0.000 posixpath.py:41(_get_sep)
+        2    0.000    0.000    0.000    0.000 {method 'rsplit' of 'str' objects}
+        4    0.000    0.000    0.000    0.000 view_component.py:63(<listcomp>)
+        3    0.000    0.000    0.000    0.000 {built-in method from_bytes}
+        1    0.000    0.000    0.000    0.000 gui_elements.py:109(initialise)
+        4    0.000    0.000    0.000    0.000 {method 'get' of 'dict' objects}
+        1    0.000    0.000    0.000    0.000 {method 'discard' of 'set' objects}
+        4    0.000    0.000    0.000    0.000 {method 'startswith' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 {method 'add' of 'set' objects}
+        1    0.000    0.000    0.000    0.000 main.py:21(__init__)
+        1    0.000    0.000    0.000    0.000 threading.py:268(_acquire_restore)
+        2    0.000    0.000    0.000    0.000 {method 'values' of 'dict' objects}
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:736(find_spec)
+        2    0.000    0.000    0.000    0.000 threading.py:529(is_set)
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+        1    0.000    0.000    0.000    0.000 {method 'get_name' of 'pygame.joystick.Joystick' objects}
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:406(has_location)
+        2    0.000    0.000    0.000    0.000 {method 'pop' of 'dict' objects}
+        1    0.000    0.000    0.000    0.000 {built-in method _imp._fix_co_filename}
+        1    0.000    0.000    0.000    0.000 {method 'locked' of '_thread.lock' objects}
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:781(create_module)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:971(get_filename)
+        2    0.000    0.000    0.000    0.000 {method 'release' of '_thread.lock' objects}
+        1    0.000    0.000    0.000    0.000 {built-in method _imp.exec_dynamic}
+        1    0.000    0.000    0.000    0.000 {method 'append' of 'collections.deque' objects}
+
+

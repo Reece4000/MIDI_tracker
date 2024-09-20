@@ -1,58 +1,49 @@
-import timeit
 import random
+from pyo import *
 
-# Original implementation
-def transpose_to_scale_original(notes, scale):
-    if len(scale) != 12:
-        raise ValueError("Scale must be 12 notes long")
+pm_list_devices()
 
-    def transpose_note(note):
-        scale_degree = note % 12
-        for i in range(12):
-            if scale[(scale_degree + i) % 12] == 1:
-                return note + i
+s = Server()
 
-    return [transpose_note(note) for note in notes]
+# Open all MIDI output devices.
+s.setMidiOutputDevice(99)
 
-# New implementation
-def transpose_to_scale_new(notes, scale):
-    if len(scale) != 12:
-        raise ValueError("Scale must be 12 notes long")
+# Then boot the Server.
+s.boot()
 
-    def transpose_note(note):
-        scale_degree = note % 12
-        if scale[scale_degree] == 1:
-            return note
-        for i in range(1, 7):
-            if scale[(scale_degree + i) % 12] == 1:
-                upper_match = note + i
-                break
-        for i in range(1, 7):
-            if scale[(scale_degree - i) % 12] == 1:
-                lower_match = note - i
-                break
-        return upper_match if abs(upper_match - note) <= abs(lower_match - note) else lower_match
+# Generates an audio ramp from 36 to 84, from
+# which MIDI pitches will be extracted.
+pitch = Phasor(freq=11, mul=48, add=36)
 
-    return [transpose_note(note) for note in notes]
+# Global variable to count the down and up beats.
+count = 0
 
-# Benchmark function
-def run_benchmark(func, scale, num_notes, num_runs):
-    notes = [random.randint(0, 127) for _ in range(num_notes)]
-    return timeit.timeit(lambda: func(notes, scale), number=num_runs)
 
-# Setup
-scale = [1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0]  # C minor pentatonic
-num_runs = 10000
-note_counts = [4, 10, 100, 1000]
+def midi_event():
+    global count
+    # Retrieve the value of the pitch audio stream and convert it to an int.
+    pit = int(pitch.get())
 
-# Run benchmarks
-print("Benchmarking results:")
-print(f"{'Input Size':>12} {'Original (s)':>15} {'New (s)':>15} {'Ratio (New/Original)':>25}")
-for num_notes in note_counts:
-    time_original = run_benchmark(transpose_to_scale_original, scale, num_notes, num_runs)
-    time_new = run_benchmark(transpose_to_scale_new, scale, num_notes, num_runs)
-    ratio = time_new / time_original
-    print(f"{num_notes:12d} {time_original:15.6f} {time_new:15.6f} {ratio:25.6f}")
-    
-    
-input("enter to exit")
+    # If the count is 0 (down beat), play a louder and longer event, otherwise
+    # play a softer and shorter one.
+    if count == 0:
+        vel = random.randint(90, 110)
+        dur = 500
+    else:
+        vel = random.randint(50, 70)
+        dur = 125
+
+    # Increase and wrap the count to generate a 4 beats sequence.
+    count = (count + 1) % 4
+
+    print("pitch: %d, velocity: %d, duration: %d" % (pit, vel, dur))
+
+    # The Server's `makenote` method generates a noteon event immediately
+    # and the correponding noteoff event after `duration` milliseconds.
+    s.makenote(pitch=pit, velocity=vel, duration=dur)
+
+
+# Generates a MIDI event every 125 milliseconds.
+pat = Pattern(midi_event, 0.005).play()
+
+s.gui(locals())

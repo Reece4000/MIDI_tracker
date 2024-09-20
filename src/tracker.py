@@ -5,6 +5,7 @@ from time import perf_counter
 import timeit
 
 from config import constants, display, themeing, events
+from config.pages import *
 from config.constants import page_map as pmap
 from src.utils import timing_decorator, calculate_timeline_increment
 
@@ -99,8 +100,8 @@ class Tracker:
 
 
         # some ui components need to share state vars
-        self.pages[pmap["master"]].pattern_view = self.pages[pmap["pattern"]]
-        self.pages[pmap["pattern"]].master_track_view = self.pages[pmap["master"]]
+        self.pages[MASTER].pattern_view = self.pages[PATTERN]
+        self.pages[PATTERN].master_track_view = self.pages[MASTER]
 
 
     def running_loop(self):
@@ -348,7 +349,7 @@ class Tracker:
         self.set_cursor_pattern(new_val)
 
     def get_selected_step(self, track=None):
-        pattern_view = self.pages[pmap["pattern"]]
+        pattern_view = self.pages[PATTERN]
         if track is None:
             track = self.get_selected_track()
         if pattern_view.cursor_y >= track.length:
@@ -356,7 +357,7 @@ class Tracker:
         return track.steps[pattern_view.cursor_y]
 
     def get_selected_track(self):
-        pattern_view = self.pages[pmap["pattern"]]
+        pattern_view = self.pages[PATTERN]
         try:
             return self.cursor_pattern.midi_tracks[pattern_view.cursor_x]
         except IndexError:
@@ -390,7 +391,7 @@ class Tracker:
         self.pages[self.page].handle_duplicate()
 
     def activate_editor_window(self):
-        editor_window_page = pmap["detail"]
+        editor_window_page = EDITOR
         if self.pages[editor_window_page].active:
             return
 
@@ -398,11 +399,10 @@ class Tracker:
         self.page_switch(direction=None, page_num=editor_window_page)
 
     def deactivate_editor_window(self):
-        editor_window_page = pmap["detail"]
-        if not self.pages[editor_window_page].active:
+        if not self.pages[EDITOR].active:
             return
 
-        prev_page = self.pages[editor_window_page].previous_page
+        prev_page = self.pages[EDITOR].previous_page
         if prev_page is not None:
             self.page_switch(direction=None, page_num=prev_page)
 
@@ -412,18 +412,13 @@ class Tracker:
         else:
             self.page = page_num
 
-        self.pages[pmap["pattern"]].update_y_anchor(self.page, pmap["pattern"], pmap["master"])
+        self.pages[PATTERN].update_y_anchor(self.page)
 
         for i, view in self.pages.items():
             if view is None:
                 continue
-            if i != self.page:
-                if view.active:
-                    view.active = False
-                    view.flag_state_change()
-            else:
-                view.active = True
-                view.flag_state_change()
+            if (i != self.page and view.active) or (i == self.page and not view.active):
+                view.toggle_active()
 
 
 
@@ -434,8 +429,8 @@ class Tracker:
 
     def stop_preview(self):
         if not self.is_playing:
-            if self.page == pmap["pattern"] and self.pages[pmap["pattern"]].cursor_x > 0:
-                track = self.cursor_pattern.tracks[self.pages[pmap["pattern"]].cursor_x]
+            if self.page == PATTERN and self.pages[PATTERN].cursor_x > 0:
+                track = self.cursor_pattern.tracks[self.pages[PATTERN].cursor_x]
                 self.midi_handler.all_notes_off(track.channel)
 
     def options_menu(self, is_active):
@@ -489,10 +484,10 @@ class Tracker:
             return
 
         note = data if data == -1 else data + (self.octave_mod * 12)
-        if self.page == pmap["detail"]:
-            self.add_note(step, self.pages[pmap["detail"]].cursor_y, note)
+        if self.page == EDITOR:
+            self.add_note(step, self.pages[EDITOR].cursor_y, note)
         else:
-            self.pages[pmap["detail"]].state_changed = True
+            self.pages[EDITOR].state_changed = True
             for pos in range(4):
                 step.update_note(pos, note if pos == 0 else None)
                 step.update_velocity(pos, self.last_vel if pos == 0 else None)
@@ -613,7 +608,7 @@ class Tracker:
         pass
 
     def adjust_length(self, increment):
-        pattern_view = self.pages[pmap["pattern"]]
+        pattern_view = self.pages[PATTERN]
         selected_tracks = pattern_view.get_selected_tracks()
         if self.cursor_pattern is not None:
             for x in selected_tracks:
@@ -622,7 +617,7 @@ class Tracker:
             # self.sequencer.update_sequencer_params()
 
     def adjust_lpb(self, increment):
-        pattern_view = self.pages[pmap["pattern"]]
+        pattern_view = self.pages[PATTERN]
         selected_tracks = pattern_view.get_selected_tracks()
         if self.cursor_pattern is not None:
             for x in selected_tracks:

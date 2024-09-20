@@ -1,4 +1,5 @@
-from config import constants, display, events
+from config.pages import *
+from config import constants, display, events, render_map, themeing
 from config.constants import FOLLOW_MASTER, FOLLOW_PATTERN
 from src.gui_elements import PatternCell, TrackBox
 from src.ui_components.view_component import ViewComponent
@@ -6,7 +7,10 @@ from src.utils import timing_decorator
 
 
 def get_pattern_index(y_screen, y_pattern):
-    return (y_pattern - display.visible_rows // 2) + y_screen
+    if not constants.center_y_cursor:
+        return y_pattern + (y_screen // display.visible_rows) * display.visible_rows
+    else:
+        return (y_pattern - display.center_y) + y_screen
 
 
 class PatternEditor(ViewComponent):
@@ -15,9 +19,10 @@ class PatternEditor(ViewComponent):
         super().__init__(tracker)
 
         self.active = True  # start on pattern
+        self.page_active_coords = display.pattern_page_border
         self.master_track_view = None  # need to share some state variables with the master
         self.y_anchor = FOLLOW_PATTERN
-        self.state_changed = [1, 1, 1, 1, 1, 1, 1, 1]
+        self.state_changed = [1] * 8
 
         self.track_boxes = [TrackBox(x, parent=self) for x in range(constants.track_count)]
         self.cells = [[PatternCell(x, y, parent=self) for y in range(display.visible_rows)] for x in range(constants.track_count)]
@@ -36,7 +41,7 @@ class PatternEditor(ViewComponent):
     def flag_state_change(self):
         self.selected_rows = self.get_selected_rows()
         self.selected_tracks = self.get_selected_tracks()
-        self.state_changed = [1, 1, 1, 1, 1, 1, 1, 1]
+        self.state_changed = [1] * 8
         if not self.master_track_view.state_changed:
             self.master_track_view.state_changed = True
 
@@ -195,7 +200,7 @@ class PatternEditor(ViewComponent):
 
         elif x < 0:  # Moving left
             add = (0 if self.cursor_w < 0 else -self.cursor_w)
-            if self.cursor_x + add <= 1:
+            if self.cursor_x + add <= 0:
                 return
             elif self.cursor_y + (0 if self.cursor_h > 0 else -self.cursor_h) >= tracks[self.cursor_x + x].length:
                 return
@@ -365,10 +370,10 @@ class PatternEditor(ViewComponent):
             self.cursor_w += delta_x
             self.cursor_h += delta_y
 
-    def update_y_anchor(self, current_page_index, pattern_page_index, master_page_index):
-        if current_page_index == pattern_page_index:
+    def update_y_anchor(self, current_page_index):
+        if current_page_index == PATTERN:
             self.y_anchor = self.master_track_view.y_anchor = FOLLOW_PATTERN
-        elif current_page_index == master_page_index:
+        elif current_page_index == MASTER:
             self.y_anchor = self.master_track_view.y_anchor = FOLLOW_MASTER
 
     def update_row_number_view(self, pattern, y_cursor, render_queue):
@@ -420,16 +425,14 @@ class PatternEditor(ViewComponent):
 
     def update_view(self):
         pattern = self.tracker.cursor_pattern
-        y_cursor = self.cursor_y
         render_queue = self.tracker.renderer.render_queue
 
-        self.update_row_number_view(pattern, y_cursor, render_queue)
+        self.update_row_number_view(pattern, self.cursor_y, render_queue)
         self.update_pattern_view(pattern, render_queue)
         for index, track_box in enumerate(self.track_boxes):
-            track_box.check_for_state_change(index, self.tracker.page, self.tracker.cursor_pattern,
-                                             self.selected_tracks, self.tracker.renderer)
+            track_box.check_for_state_change(index, self.tracker.page, pattern, self.selected_tracks, render_queue)
 
-        self.state_changed = [0, 0, 0, 0, 0, 0, 0, 0]
+        self.state_changed = [0] * 8
 
 
 

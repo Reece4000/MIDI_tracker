@@ -15,6 +15,7 @@ from src.ui_components.pattern_view import get_pattern_index
 class MasterTrack(ViewComponent):
     def __init__(self, tracker, row_number_cells):
         super().__init__(tracker)
+        self.page_active_coords = display.master_page_border
         self.track_box = TrackBox(0, parent=self, master=True)
         self.cells = [PatternCell(0, y, parent=self, master=True) for y in range(display.visible_rows)]
         self.y_anchor = FOLLOW_PATTERN
@@ -132,8 +133,7 @@ class MasterTrack(ViewComponent):
 
         self.update_row_number_view(pattern, render_queue)
         self.update_pattern_view(pattern, render_queue)
-        self.track_box.check_for_state_change(0, self.tracker.page, self.tracker.cursor_pattern,
-                                              self.selected_tracks, self.tracker.renderer)
+        self.track_box.check_for_state_change(0, self.tracker.page, pattern, self.selected_tracks, render_queue)
 
         self.state_changed = False
 

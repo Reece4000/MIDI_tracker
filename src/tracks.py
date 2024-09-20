@@ -178,6 +178,7 @@ class MidiTrack(Track):
                     midi_handler.note_off(self.channel, last_played, i)
 
                 if note != -1:  # not a note off message
+                    print(note)
                     note_played = True
                     while note in midi_handler.last_notes_played[self.channel]:
                         index = midi_handler.last_notes_played[self.channel].index(note)
