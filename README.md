@@ -4,7 +4,7 @@ A tracker style sequencer inspired by Teenage Engineering's OP-Z and the Dirtywa
 
 ![image](https://github.com/user-attachments/assets/73dcc41e-311a-4a63-a5e2-c7a4310df052)
 
-This is a sequencer only; it does not create sound. A loopback MIDI device such as Tobias Erichsen's **LoopMIDI** is required in order to send MIDI data to an external source
+This is a sequencer only; it does not create sound. A loopback MIDI device such as Tobias Erichsen's **LoopMIDI** is required in order to send MIDI data to an external source https://www.tobias-erichsen.de/software/loopmidi.html
 
 
 ## Features (many not yet implemented):
