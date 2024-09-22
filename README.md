@@ -1,4 +1,4 @@
-## **Work in progress!**
+# **Work in progress!**
 
 A tracker style sequencer inspired by Teenage Engineering's OP-Z and the Dirtywave M8. The sequencer aims to prioritise fun and experimentation, while allowing for fast composition and editing.
 
@@ -7,7 +7,7 @@ A tracker style sequencer inspired by Teenage Engineering's OP-Z and the Dirtywa
 This is a sequencer only; it does not create sound. A loopback MIDI device such as Tobias Erichsen's **LoopMIDI** is required in order to send MIDI data to an external source
 
 
-# Features (many not yet implemented):
+## Features (many not yet implemented):
 - Independent length, LPB, swing and scale per track
   
 - 4 note polyphony per step
