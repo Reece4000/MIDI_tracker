@@ -107,7 +107,7 @@ class Tracker:
     def running_loop(self):
         try:
             self.running = True
-            render_interval = 1 / 60
+            render_interval = 1 / display.FPS
             last_render_time = perf_counter()
             while self.running:
                 self.handle_events()
@@ -115,8 +115,6 @@ class Tracker:
                 elapsed = curr_time - last_render_time
                 if elapsed >= render_interval:
                     self.update_view_states()
-                    self.renderer.process_queue()
-                    self.renderer.update_screen()
                     last_render_time = curr_time
                 else:
                     time.sleep(render_interval - elapsed)

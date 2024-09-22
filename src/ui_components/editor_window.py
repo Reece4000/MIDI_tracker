@@ -1,9 +1,10 @@
 from src.ui_components.view_component import ViewComponent
-from src.gui_elements import KeyHints
+from src.gui_elements import KeyHints, TextBox, Button
 from config import constants, display, themeing, events
 from config.render_map import *
 from config.pages import *
 from src.utils import midi_to_note
+
 
 
 class EditorWindow(ViewComponent):
@@ -15,6 +16,10 @@ class EditorWindow(ViewComponent):
         self.title_h = 28
         self.w = 250
         self.h = 702
+
+        self.title = TextBox(self.x_pos, self.y_pos, self.w, 28, "Editor", "zoom_font",
+                             themeing.BG_SEP, themeing.BG_COLOR)
+
         self.key_hints = KeyHints()
         self.tracker.event_bus.subscribe(events.DETAIL_WINDOW_STATE_CHANGED, self.flag_state_change)
 

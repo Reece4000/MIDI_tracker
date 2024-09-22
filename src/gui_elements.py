@@ -19,6 +19,27 @@ class UiComponent:
         return False
 
 
+class TextBox:
+    def __init__(self, x, y, w, h, text, font, text_color, bg_color):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.text = text
+        self.font = font
+
+        # text, font, color, bg_color
+        self.state = [text, text_color, bg_color]
+
+    def initialise(self):
+        return self.update(self.text, self.state[1], self.state[2])
+
+    def update(self, new_text, new_text_color, new_bg_color):
+        self.state = [new_text, new_text_color, new_bg_color]
+        return [[RECT, self.state[2], self.x, self.y, self.w, self.h, 0],
+                [TEXT, self.font, self.state[1], self.state[0], self.x + 7, self.y, 0]]
+
+
 class Button(UiComponent):
     def __init__(self, x, y, w, h, text, font, text_color, bg_color):
         super().__init__()
@@ -401,7 +422,7 @@ class RowNumberCell(UiComponent):
         if self.dirtied([cell_text, text_color, outline, bg]):
             x, y = self.x_screen, self.y_screen + 1
             render_queue.appendleft([RECT, bg, x, y, display.row_labels_w, display.row_h, 0])
-            render_queue.appendleft([RECT, outline, x, y, display.row_labels_w, display.row_h, 1])
+            render_queue.appendleft([RECT, outline, x, y, display.row_labels_w, display.row_h, 2])
             if cell_text is not None:
                 offs = 5 if track_step_index < 100 else 1
                 render_queue.appendleft([TEXT, "tracker_row_label_font", text_color, cell_text, x + offs, y + 2, 0])

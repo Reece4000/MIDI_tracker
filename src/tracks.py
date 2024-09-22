@@ -19,6 +19,8 @@ class Track:
         self.swing_factor: int = int((self.swing / self.lpb) * 4)
         self.step_pos = self.get_step_pos()
 
+
+
     def update_properties(self, length: int, lpb: int) -> None:
         pos: float = self.ticks / self.ticks_per_step
         self.length = length
@@ -49,9 +51,15 @@ class Track:
         self.ticks += increment
         self.ticks %= self.length_in_ticks
 
+
         self.steps[self.step_pos].state_changed = True
 
         self.step_pos = self.get_step_pos()
+
+
+
+
+
         if self.swing == 0 or self.is_on_downbeat():
             on_next_step: bool = self.ticks % self.ticks_per_step == 0
         else:
@@ -133,6 +141,12 @@ class MidiTrack(Track):
         # lets set the swing in this way and then divide it as necessary when the lpb changes
         # a max swing of 23
 
+        # maybe makes sense to put this in the midi handler ?
+        self.retrig: bool = True
+        self.retrig_state: list[int] = [1, 0, 60, 80]  # [rate, ticks since last retrig, note, velocity]
+
+
+
     def reset(self) -> None:
         super().reset()
         self.is_reversed = False
@@ -153,7 +167,35 @@ class MidiTrack(Track):
 
     def tick(self, increment=None) -> bool:
         increment = 1 if not self.is_reversed else -1
-        return super().tick(increment)  # returns true if on new step
+        on_next_step = super().tick(increment)  # returns true if on new step
+
+        """
+        if self.retrig:
+            self.retrig_state[1] += 1
+            if self.retrig_state[1] >= self.retrig_state[0]:
+                self.retrig_state[1] = 0
+                self.retrig_state[3] -= 2
+                if self.retrig_state[3] < 0:
+                    self.retrig_state[3] = 80
+                else:
+                    midi_handler = self.tracker.midi_handler
+                    note = self.retrig_state[2]
+                    vel = self.retrig_state[3]
+                    last_played = midi_handler.last_notes_played[self.channel][0]
+                    if last_played is not None:
+                        midi_handler.note_off(self.channel, last_played, 0)
+
+                    if note != -1:  # not a note off message
+                        while note in midi_handler.last_notes_played[self.channel]:
+                            index = midi_handler.last_notes_played[self.channel].index(note)
+                            midi_handler.note_off(self.channel, note, index)
+
+                        midi_handler.note_on(self.channel, note, vel, 0)
+        """
+
+        return on_next_step
+
+
 
     def handle_ccs(self, channel_ccs: list[int], values: list[int], midi_handler: MidiHandler):
         for i, val in enumerate(values):
@@ -171,14 +213,13 @@ class MidiTrack(Track):
             notes = transpose_to_scale(notes, self.scale)
 
         for i, note in enumerate(notes):
-            vel = velocities[i]
             if note is not None:
+                vel = velocities[i]
                 last_played = midi_handler.last_notes_played[self.channel][i]
                 if last_played is not None:
                     midi_handler.note_off(self.channel, last_played, i)
 
                 if note != -1:  # not a note off message
-                    print(note)
                     note_played = True
                     while note in midi_handler.last_notes_played[self.channel]:
                         index = midi_handler.last_notes_played[self.channel].index(note)

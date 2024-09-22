@@ -8,9 +8,14 @@ measured_times = defaultdict(list)
 R = TypeVar('R')
 
 
+def get_polygon_coords(x, y, w, h):
+    """ widths should be even numbers """
+    return tuple(((x, y), (x + w//2, y + h), (x + w, y)))
+
+
 def transpose_to_scale(notes, scale):
     def transpose_note(note):
-        if note is None:
+        if note is None or note == -1:
             return note
 
         scale_degree = note % 12

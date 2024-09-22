@@ -5,7 +5,7 @@ center_y_cursor = True
 
 start_bpm = 170
 start_len = 64
-start_lpb = 32
+start_lpb = 8
 start_swing = 0
 
 track_count = 8

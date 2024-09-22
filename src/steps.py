@@ -79,10 +79,19 @@ class MidiStep(Step):
         return any(note is not None for note in self.notes) or any(
             component is not None for component in self.components)
 
+    @staticmethod
+    def transpose_note(note, increment):
+        if note is not None and note != -1:
+            note = note + increment
+            if note < 0:
+                note = 0
+            elif note > 127:
+                note = 127
+        return note
+
     def transpose(self, increment):
         self.flag_state_change()
-        self.notes = [note + increment if (note is not None and note != -1)
-                      else note for note in self.notes]
+        self.notes = [self.transpose_note(note, increment) for note in self.notes]
 
         for n in self.notes:
             if n is not None:

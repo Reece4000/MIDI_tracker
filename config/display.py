@@ -1,11 +1,9 @@
 
 from config.render_map import *
 from config.themeing import *
+from src.utils import get_polygon_coords
 
-def get_polygon_coords(x, y, w, h):
-    ''' widths should be even numbers '''
-    return tuple(((x, y), (x + w//2, y + h), (x + w, y)))
-
+FPS = 60
 
 # 1280 x 720 #
 left_pane = [RECT, TIMELINE_BG, 0, 0, 150, 720, 0]
