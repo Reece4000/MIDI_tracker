@@ -11,7 +11,7 @@ class Step:
         return False
 
 
-class PhraseStep:
+class PatternStep:
     def __init__(self):
         self.number = None  # pattern or phrase num
         self.bpm = None
@@ -25,10 +25,10 @@ class MidiStep(Step):
     def __init__(self):
         super().__init__()
         self.type = 'midi'
-        self.notes = [None, None, None, None]
-        self.velocities = [None, None, None, None]
-        self.components = [None, None, None, None]
-        self.ccs = [None, None, None, None, None, None, None, None]
+        self.notes = [None] * 4
+        self.velocities = [None] * 4
+        self.components = [None] * 4
+        self.ccs = [None] * 16
         self.cached_display_text = None
 
     def flag_state_change(self):
@@ -62,13 +62,13 @@ class MidiStep(Step):
 
     def clear(self, opt="all"):
         if opt == "all" or opt == "notes":
-            self.notes = [None, None, None, None]
+            self.notes = [None] * 4
         if opt == "all" or opt == "notes":
-            self.velocities = [None, None, None, None]
+            self.velocities = [None] * 4
         if opt == "all" or opt == "components":
-            self.components = [None, None, None, None]
+            self.components = [None] * 4
         if opt == "all" or opt == "ccs":
-            self.ccs = [None, None, None, None, None, None, None, None]
+            self.ccs = [None] * 16
         self.flag_state_change()
 
     def all_notes_off(self):
@@ -99,8 +99,8 @@ class MidiStep(Step):
         return None
 
     def has_mod(self):
-        return (self.components != [None, None, None, None] or
-                self.ccs != [None, None, None, None, None, None, None, None])
+        return (self.components != [None] * 4 or
+                self.ccs != [None] * 16)
 
     def json_serialize(self):
         return {
@@ -140,7 +140,8 @@ class MidiStep(Step):
             self.cached_display_text = [(f'{self.get_chord_name(self.notes)}', (100, 255, 100))]
             return self.cached_display_text
 
-        self.cached_display_text = [(f'{note_display}', (100, 255, 100)),
+        note_color = (255, 100, 50) if note_display == "OFF" else (100, 255, 100)
+        self.cached_display_text = [(f'{note_display}', note_color),
                                     (f'{vel_display: >3}', (255, 150, 150)),
                                     (f'{mod_display}', (150, 210, 255))]
 
@@ -151,10 +152,10 @@ class MasterStep(Step):
     def __init__(self):
         super().__init__()
         self.type = 'master'
-        self.components = [None, None, None, None]
+        self.components = [None] * 4
 
     def clear(self):
-        self.components = [None, None, None, None]
+        self.components = [None] * 4
 
     def add_component(self, component):
         for i in range(4):

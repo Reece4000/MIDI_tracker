@@ -1,4 +1,5 @@
 from config import events
+from config.scales import *
 from typing import Union
 from src.steps import Step, MidiStep, MasterStep
 from src.midi_handler import MidiHandler
@@ -18,8 +19,6 @@ class Track:
         self.swing: int = 12
         self.swing_factor: int = int((self.swing / self.lpb) * 4)
         self.step_pos = self.get_step_pos()
-
-
 
     def update_properties(self, length: int, lpb: int) -> None:
         pos: float = self.ticks / self.ticks_per_step
@@ -51,14 +50,9 @@ class Track:
         self.ticks += increment
         self.ticks %= self.length_in_ticks
 
-
         self.steps[self.step_pos].state_changed = True
 
         self.step_pos = self.get_step_pos()
-
-
-
-
 
         if self.swing == 0 or self.is_on_downbeat():
             on_next_step: bool = self.ticks % self.ticks_per_step == 0
@@ -136,7 +130,7 @@ class MidiTrack(Track):
         self.channel: int = channel
         self.is_reversed: bool = False
         self.steps: list = [MidiStep() for _ in range(length)]
-        self.scale = [1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0]  # lets try C minor pentatonic
+        self.scale = CHROMATIC
         # so we have 24 ticks per step at 4 lpb
         # lets set the swing in this way and then divide it as necessary when the lpb changes
         # a max swing of 23
@@ -145,18 +139,15 @@ class MidiTrack(Track):
         self.retrig: bool = True
         self.retrig_state: list[int] = [1, 0, 60, 80]  # [rate, ticks since last retrig, note, velocity]
 
-
-
     def reset(self) -> None:
         super().reset()
         self.is_reversed = False
 
-    def handle_mute(self, send_note_offs: bool, midi_handler: MidiHandler):
+    def handle_mute(self, send_note_offs: bool):
         self.is_muted = not self.is_muted
+        midi_handler = self.tracker.midi_handler
         if send_note_offs:
-            for note in midi_handler.last_notes_played[self.channel]:
-                if note is not None:
-                    midi_handler.note_off(self.channel, note)
+            midi_handler.all_notes_off(self.channel)
 
     def reverse(self) -> None:
         self.is_reversed = not self.is_reversed
@@ -195,11 +186,10 @@ class MidiTrack(Track):
 
         return on_next_step
 
-
-
-    def handle_ccs(self, channel_ccs: list[int], values: list[int], midi_handler: MidiHandler):
+    def handle_ccs(self, values: list[int]) -> None:
+        midi_handler = self.tracker.midi_handler
         for i, val in enumerate(values):
-            cc = channel_ccs[i]
+            cc = self.tracker.channel_ccs[self.channel][i]
             if val is None or cc is None:
                 continue
             try:
@@ -207,10 +197,11 @@ class MidiTrack(Track):
             except TypeError as e:
                 print(e, cc, val, self.channel)
 
-    def handle_notes(self, notes: list[int], velocities: list[int], midi_handler: MidiHandler):
+    def handle_notes(self, notes: list[int], velocities: list[int]) -> None:
         note_played = False
-        if self.scale is not None:
-            notes = transpose_to_scale(notes, self.scale)
+        midi_handler = self.tracker.midi_handler
+        if self.scale != CHROMATIC:
+            notes = transpose_to_scale(notes, SCALES[self.scale["indices"]])
 
         for i, note in enumerate(notes):
             if note is not None:
@@ -229,12 +220,12 @@ class MidiTrack(Track):
         if note_played:
             self.tracker.event_bus.publish(events.NOTE_PLAYED, self.channel)
 
-    def play_step(self, channel_ccs: list[int], midi_handler: MidiHandler, step_pos: int = -1) -> None:
+    def play_step(self, step_pos: int = -1) -> None:
         if step_pos == -1:
             step_pos = self.get_step_pos()
         if not self.is_muted:
-            self.handle_ccs(channel_ccs, self.steps[step_pos].ccs, midi_handler)
-            self.handle_notes(self.steps[step_pos].notes, self.steps[step_pos].velocities, midi_handler)
+            self.handle_ccs(self.steps[step_pos].ccs)
+            self.handle_notes(self.steps[step_pos].notes, self.steps[step_pos].velocities)
 
     def json_serialize(self):
         pass

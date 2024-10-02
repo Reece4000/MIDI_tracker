@@ -23,6 +23,7 @@ from src.ui_components.timeline_tracks import SongTrack, PhraseTrack
 
 from src.gui_elements import RowNumberCell
 
+import pygame
 
 
 # going for component based architecture with elements of MVC
@@ -75,13 +76,16 @@ class Tracker:
         self.mouse_y = 0
 
         self.octave_mod = 2
+        self.channel_ccs = [[i for i in range(1, 17)] for _ in range(8)]
+
         self.last_note = constants.start_note
         self.last_vel = constants.start_vel
         self.last_bpm = constants.start_bpm
         self.last_lpb = constants.start_lpb
         self.last_length = constants.start_len
         self.last_swing = constants.start_swing
-        self.channel_ccs = [[1, 2, 3, 4, 5, 6, 7, 8] for _ in range(8)]
+        self.last_cc = constants.start_cc
+        self.last_cc_val = constants.start_cc_val
 
         self.page = 3
         self.pages = {}
@@ -92,17 +96,16 @@ class Tracker:
 
         row_number_cells = [RowNumberCell(y) for y in range(display.visible_rows)] # shared between pattern and master
         self.info_pane = InfoPane(self)
-        self.pages[0] = SongTrack(self)
-        self.pages[1] = PhraseTrack(self)
-        self.pages[2] = MasterTrack(self, row_number_cells)
-        self.pages[3] = PatternEditor(self, row_number_cells)
-        self.pages[4] = EditorWindow(self)
 
+        self.pages[SONG] = SongTrack(self)
+        self.pages[PHRASE] = PhraseTrack(self)
+        self.pages[MASTER] = MasterTrack(self, row_number_cells)
+        self.pages[PATTERN] = PatternEditor(self, row_number_cells)
+        self.pages[EDITOR] = EditorWindow(self)
 
         # some ui components need to share state vars
         self.pages[MASTER].pattern_view = self.pages[PATTERN]
         self.pages[PATTERN].master_track_view = self.pages[MASTER]
-
 
     def running_loop(self):
         try:
@@ -117,7 +120,8 @@ class Tracker:
                     self.update_view_states()
                     last_render_time = curr_time
                 else:
-                    time.sleep(render_interval - elapsed)
+                    # use pygame wait instead of time.sleep to avoid blocking the event loop
+                    pygame.time.wait(int((render_interval - elapsed) * 1000))
 
         finally:
             print("Cleaning up and exiting...")
@@ -148,6 +152,9 @@ class Tracker:
             self.update_track_playheads()
             self.ticks += 1
 
+    def update_channel_ccs(self, channel, cc_index, new_cc):
+        self.channel_ccs[channel][cc_index] = new_cc
+
     def update_pattern_parameters(self):
         playing_phrase_num = self.song_pool[self.song_playhead]
         playing_pattern_num = self.phrase_pool[playing_phrase_num][self.phrase_playhead]
@@ -164,7 +171,6 @@ class Tracker:
 
         else:
             self.is_playing = False
-
 
     def stop_playback(self):
         self.is_playing = False
@@ -194,7 +200,7 @@ class Tracker:
                 if component[0] == 'REV':
                     self.playing_pattern.reverse_tracks()
                 elif component[0] == 'SNC':
-                    self.playing_pattern.synchronise_playheads(self.channel_ccs, self.midi_handler)
+                    self.playing_pattern.synchronise_playheads()
 
     def update_song_playhead(self):
         next_step = self.song_playhead + 1
@@ -243,7 +249,7 @@ class Tracker:
 
         for i, tick in enumerate(ticks):
             if tick:
-                self.playing_pattern.midi_tracks[i].play_step(self.channel_ccs, self.midi_handler)
+                self.playing_pattern.midi_tracks[i].play_step()
         return
 
     def reset_track_playheads(self):
@@ -254,7 +260,7 @@ class Tracker:
             if track.is_master:
                 self.process_master_components()
             else:
-                track.play_step(self.channel_ccs, self.midi_handler)
+                track.play_step()
 
     def update_playing_pattern(self):
         playing_phrase_num = self.song_pool[self.song_playhead]
@@ -347,19 +353,28 @@ class Tracker:
         self.set_cursor_pattern(new_val)
 
     def get_selected_step(self, track=None):
-        pattern_view = self.pages[PATTERN]
         if track is None:
             track = self.get_selected_track()
-        if pattern_view.cursor_y >= track.length:
+            if track is None:
+                return None
+
+        if self.pages[PATTERN].cursor_y >= track.length:
             return None
-        return track.steps[pattern_view.cursor_y]
+        return track.steps[self.pages[PATTERN].cursor_y]
 
     def get_selected_track(self):
-        pattern_view = self.pages[PATTERN]
+        if self.cursor_pattern is None:
+            return None
         try:
-            return self.cursor_pattern.midi_tracks[pattern_view.cursor_x]
+            return self.cursor_pattern.midi_tracks[self.pages[PATTERN].cursor_x]
         except IndexError:
             return None
+
+    def toggle_editor_window(self):
+        if self.pages[EDITOR].active:
+            self.deactivate_editor_window()
+        else:
+            self.activate_editor_window()
 
     def handle_select(self):
         self.pages[self.page].handle_select()
@@ -370,8 +385,12 @@ class Tracker:
     def handle_insert(self):
         self.pages[self.page].handle_insert()
 
-    def handle_param_adjust(self, increment):
-        self.pages[self.page].handle_param_adjust(increment)
+    def handle_param_adjust(self, increment, axis=False):
+        try:
+            self.pages[self.page].handle_param_adjust(increment, axis)
+        except TypeError:
+            print("Error: handle_param_adjust method not implemented for current page", self.page,
+                  "Please implement this method in the current page class")
 
     def move_in_place(self, x, y):
         self.pages[self.page].move_in_place(x, y)
@@ -445,18 +464,13 @@ class Tracker:
                 self.set_playing_pattern_to_cursor()
                 self.start_playback()
 
-    def toggle_mute(self, track_indices=None):
-        if track_indices is None:
-            x, xs = self.state.pattern_cursor["x"], self.state.pattern_cursor["w"]
-            x = x - xs if xs > 0 else x
-            w = max((x - xs), x) - min((x - xs), x) + 1
-            track_indices = [i for i in range(x, x + w)]
-        for index in track_indices:
-            track = self.cursor_pattern.tracks[index]
+    def toggle_mute(self):
+        for index in self.pages[PATTERN].selected_tracks:
+            track = self.cursor_pattern.midi_tracks[index]
             if not track.is_master:
-                track.handle_mute(send_note_offs=self.on_playing_pattern, midi_handler=self.midi_handler)
+                track.handle_mute(send_note_offs=self.on_playing_pattern)
 
-    def preview_step(self):
+    def preview_step(self, notes_only=False):
         if not self.is_playing:
             track = self.get_selected_track()
             if track.is_master:
@@ -464,8 +478,10 @@ class Tracker:
 
             step = self.get_selected_step()
             if not track.is_muted:
-                track.handle_ccs(self.channel_ccs, step.ccs, self.midi_handler)
-                track.handle_notes(step.notes, step.velocities, self.midi_handler)
+                if not notes_only:
+                    track.handle_ccs(step.ccs)
+
+                track.handle_notes(step.notes, step.velocities)
 
     def add_master_component(self, step, data):
         if data == 12:

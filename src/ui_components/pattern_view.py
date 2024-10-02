@@ -69,8 +69,10 @@ class PatternEditor(ViewComponent):
 
         step.update_note(position, note)
         step.update_velocity(position, vel)
+        self.tracker.event_bus.publish(events.EDITOR_WINDOW_STATE_CHANGED)
 
     def handle_delete(self, remove_steps):
+        self.tracker.event_bus.publish(events.EDITOR_WINDOW_STATE_CHANGED)
         x, y, w, h = self.get_selection_coords()
 
         for track_index in range(w + 1):
@@ -105,11 +107,14 @@ class PatternEditor(ViewComponent):
             track.length = len(track.steps)
             track.length_in_ticks = track.length * (96 // track.lpb)
 
-    def handle_param_adjust(self, increment):
-        self.pattern_transpose(increment)
+    def handle_param_adjust(self, increment, axis=False):
+        if not axis:
+            self.pattern_transpose(increment)
+        else:
+            self.update_vel(increment, preview=False)
 
-    def update_vel(self, val, preview=True):
-        if val == 0:
+    def update_vel(self, increment, preview=True):
+        if increment == 0:
             return
         x, y, w, h = self.get_selection_coords()
         for track in range(w + 1):
@@ -118,10 +123,10 @@ class PatternEditor(ViewComponent):
                 for i in range(constants.max_polyphony):
                     curr_vel = step.velocities[i]
                     if curr_vel is not None:
-                        if val > 0:
-                            new_vel = min(127, int(curr_vel) + val)
+                        if increment > 0:
+                            new_vel = min(127, int(curr_vel) + increment)
                         else:
-                            new_vel = max(0, int(curr_vel) + val)
+                            new_vel = max(0, int(curr_vel) + increment)
 
                         self.tracker.last_vel = step.update_velocity(i, new_vel)
 
@@ -241,8 +246,7 @@ class PatternEditor(ViewComponent):
                 step.notes[:] = clipboard_step.notes
                 step.velocities[:] = clipboard_step.velocities
                 step.components[:] = clipboard_step.components
-                step.state_changed = True
-                step.clear_display_cache()
+                step.flag_state_change()
 
     def move_cursor(self, x, y, expand_selection=False):
         prev_x, prev_y = self.cursor_x, self.cursor_y
@@ -261,7 +265,7 @@ class PatternEditor(ViewComponent):
             self.cursor_w, self.cursor_h = 0, 0
 
         self.flag_state_change()
-        self.tracker.event_bus.publish(events.DETAIL_WINDOW_STATE_CHANGED)
+        self.tracker.event_bus.publish(events.EDITOR_WINDOW_STATE_CHANGED)
 
     def get_selection_coords(self):
         xs, ys = self.cursor_w, self.cursor_h

@@ -28,12 +28,12 @@ timeline_cell_h = 19
 display_w, display_h = 1220, 706
 
 # TIMELINE
-timeline_area_y = menu_height + row_h * 11 + 1
+timeline_area_y = menu_height + row_h * 11 + 8
 timeline_area_height = num_timeline_rows * row_h
 timeline_width = 80
 
 # timeline arrows
-x1, x2, y1, y2 = 14, 50, (row_h * 12 + 2), (row_h * 32 + 12)
+x1, x2, y1, y2 = 14, 50, (row_h * 12 + 9), (row_h * 32 + 19)
 inc = 6
 song_arrow_upper = get_polygon_coords(x1, y1, 12, -inc)
 phrase_arrow_upper = get_polygon_coords(x2, y1, 12, -inc)
@@ -61,6 +61,8 @@ track_x_positions = [
     x_row_labels + row_labels_w + separator + (col_w*7 + separator*7)
 ]
 
+editor_window_x = track_x_positions[-1] + 100
+
 pattern_area_width = track_x_positions[7] - 20
 
 cell_offs = 10
@@ -72,7 +74,7 @@ play_x, play_y = 21, 190
 detail_window_replace_bg_h = 580
 detail_window_title_h = 36
 
-song_page_border = (4, timeline_area_y-2, timeline_cell_w+4, timeline_area_height+2, 1)
-phrase_page_border = (41, timeline_area_y-2, timeline_cell_w+4, timeline_area_height+2, 1)
+song_page_border = (4, timeline_area_y-1, timeline_cell_w+4, timeline_area_height+2, 1)
+phrase_page_border = (41, timeline_area_y-1, timeline_cell_w+4, timeline_area_height+2, 1)
 master_page_border = (92, 1, 93, 704, 1)
 pattern_page_border = (225, 1, 730, 704, 1)

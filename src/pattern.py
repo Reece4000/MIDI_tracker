@@ -22,7 +22,7 @@ class Pattern:
 
         self.set_swing()
 
-    def synchronise_playheads(self, channel_ccs, midi_handler):
+    def synchronise_playheads(self):
         master_track_step_pos = self.master_track.get_step_pos()
         for track in self.midi_tracks:
             ticks = master_track_step_pos * (96 // track.lpb)
@@ -32,7 +32,7 @@ class Pattern:
                 ticks = 0
             track.ticks = ticks
             if track.get_current_tick() == 0:
-                track.play_step(channel_ccs, midi_handler)
+                track.play_step()
 
     def reverse_tracks(self):
         for track in self.midi_tracks:

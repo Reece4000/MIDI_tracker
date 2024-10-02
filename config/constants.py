@@ -5,7 +5,7 @@ center_y_cursor = True
 
 start_bpm = 170
 start_len = 64
-start_lpb = 8
+start_lpb = 16
 start_swing = 0
 
 track_count = 8
@@ -14,7 +14,9 @@ timeline_length = max_patterns = 1000
 
 start_note = 60
 start_vel = 80
-max_ccs = 12
+start_cc = 1
+start_cc_val = 64
+max_ccs = 16
 max_polyphony = 4
 note_off = [-1, -1, -1, -1]
 empty = [None, None, None, None]

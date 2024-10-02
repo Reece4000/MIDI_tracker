@@ -28,7 +28,7 @@ class TimelineTrack(ViewComponent):
         else:
             self.cursor_h = 0
 
-        self.tracker.event_bus.publish(events.DETAIL_WINDOW_STATE_CHANGED)
+        self.tracker.event_bus.publish(events.EDITOR_WINDOW_STATE_CHANGED)
         self.flag_state_change()
 
     def draw_arrows(self, render_queue):
@@ -88,14 +88,14 @@ class TimelineTrack(ViewComponent):
 
             if cell.dirtied(state):
                 text, text_color, cursor, bg = state
-                x, y = cell.x_screen, cell.y_screen + display.timeline_offset
+                x, y = cell.x_screen, cell.y_screen
                 w, h = display.timeline_cell_w, display.timeline_cell_h
                 render_queue.appendleft([RECT, cursor, x - 2, y + 1, w, h, 1])
                 render_queue.appendleft([RECT, bg, x, y + 3, w - 4, h - 4, 0])
                 if text is not None:
                     render_queue.appendleft([TEXT, "tracker_timeline_font", text_color, text, x + 1, y + 2, 0])
     
-    def handle_param_adjust(self, increment):
+    def handle_param_adjust(self, increment, axis=False):
         self.tracker.event_bus.publish(events.ALL_STATES_CHANGED)
         self.state_changed = True
 
@@ -129,7 +129,7 @@ class SongTrack(TimelineTrack):
     def handle_insert(self):
         pass
 
-    def handle_param_adjust(self, increment):
+    def handle_param_adjust(self, increment, axis=False):
         super().handle_param_adjust(increment)
         self.tracker.update_song_step(self.cursor_y, increment)
 

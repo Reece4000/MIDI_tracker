@@ -1,4 +1,5 @@
 import pygame
+from PIL import Image
 from collections import deque
 from src.gui_elements import *
 from src.utils import timing_decorator, midi_to_note
@@ -35,6 +36,7 @@ class Renderer:
             "tracker_timeline_font": pygame.font.Font(r'resources\fonts\pixel\PixelOperatorSC-Bold.ttf', 16),
             "param_display": pygame.font.Font(r'resources\fonts\Code 7x5.ttf', 8),
             "zoom_font": pygame.font.Font(r'resources\fonts\pixel\PixelOperatorMono-Bold.ttf', 32),
+            "textbox_font": pygame.font.Font(r'resources\fonts\pixel\PixelOperatorMono-Bold.ttf', 16)
         }
 
         # self.detail_window = DetailWindow()
@@ -67,6 +69,12 @@ class Renderer:
 
         # https://www.iconpacks.net
         icon = pygame.image.load(r"resources/black-gameplay-symbol-20172.svg")
+
+        self.step_page = pygame.image.load(r"resources\editor_panes\step_page.png").convert()
+        self.track_page = pygame.image.load(r"resources\editor_panes\track_page.png").convert()
+        self.pattern_page = pygame.image.load(r"resources\editor_panes\pattern_page.png").convert()
+        self.phrase_page = pygame.image.load(r"resources\editor_panes\phrase_page.png").convert()
+
         pygame.display.set_icon(icon)
 
         pygame.display.set_caption("GAMT")
@@ -107,10 +115,11 @@ class Renderer:
             if e[0] == FILL:
                 self.screen.fill(e[1])
 
-            elif e[0] == LINE:
+            elif e[0] == LINE or e[0] == LINE_NO_DIRTY:
                 color, start, end, width = e[1], e[2], e[3], e[4]
                 l = pygame.draw.line(self.screen, color, start, end, width)
-                self.dirty_rects.append(l)
+                if e[0] == LINE:
+                    self.dirty_rects.append(l)
 
             elif e[0] == PANE:
                 color, x, y, w, h, alpha = e[1], e[2], e[3], e[4], e[5], e[6]
@@ -125,11 +134,12 @@ class Renderer:
 
                 self.screen.blit(pane, (x, y))
 
-            elif e[0] == RECT:
+            elif e[0] == RECT or e[0] == RECT_NO_DIRTY:
                 color, x, y, w, h, b = e[1], e[2], e[3], e[4], e[5], e[6]
                 try:
                     r = pygame.draw.rect(self.screen, color, (x, y, w, h), b)
-                    self.dirty_rects.append(r)
+                    if e[0] == RECT:
+                        self.dirty_rects.append(r)
                 except:
                     print("error adding rect: ", color, x, y, w, h, b)
 
@@ -145,15 +155,17 @@ class Renderer:
 
                 self.screen.blit(rendered_text, (x, y))
 
-            elif e[0] == CIRCLE:
+            elif e[0] == CIRCLE or e[0] == CIRCLE_NO_DIRTY:
                 color, center, radius, width = e[1], e[2], e[3], e[4]
                 c = pygame.draw.circle(self.screen, color, center, radius, width)
-                self.dirty_rects.append(c)
+                if e[0] == CIRCLE:
+                    self.dirty_rects.append(c)
 
-            elif e[0] == POLYGON:
+            elif e[0] == POLYGON or e[0] == POLYGON_NO_DIRTY:
                 color, points, b = e[1], e[2], e[3]
                 p = pygame.draw.polygon(self.screen, color, points, b)
-                self.dirty_rects.append(p)
+                if e[0] == POLYGON:
+                    self.dirty_rects.append(p)
 
             elif e[0] == "user input":
                 pass
@@ -163,6 +175,7 @@ class Renderer:
                 # return user_input.inputted_text
 
             elif e[0] == IMAGE:
+                # image, x, y
                 self.screen.blit(e[1], (e[2], e[3]))
         except IndexError:
             print(e)
@@ -213,6 +226,7 @@ class Renderer:
     @timing_decorator
     def update_screen(self):
         pygame.display.update(self.dirty_rects)
+        # pygame.display.update()
         self.dirty_rects = []
         self.render_cycle += 1
 
@@ -266,9 +280,9 @@ class Renderer:
 
         win = self.detail_window
         if self.state.page == 4:
-            self.render_queue.appendleft([RECT, themeing.CURSOR_COLOR, win.x_pos, win.y_pos, win.w, win.h, 2])
+            self.render_queue.appendleft([RECT, themeing.CURSOR_COLOR, win.x_pos, win.y_pos, win.w, win.h_actual, 2])
         else:
-            self.render_queue.appendleft([RECT, themeing.LINE_16_HL_BG, win.x_pos, win.y_pos, win.w, win.h, 2])
+            self.render_queue.appendleft([RECT, themeing.LINE_16_HL_BG, win.x_pos, win.y_pos, win.w, win.h_actual, 2])
 
         self.render_queue.appendleft([RECT, themeing.BG_COLOR, win.x_pos + 2, win.y_pos + 2,
                                       win.w - 4, display.detail_window_replace_bg_h, 0])

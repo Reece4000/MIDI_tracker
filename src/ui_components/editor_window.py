@@ -6,22 +6,115 @@ from config.pages import *
 from src.utils import midi_to_note
 
 
-
-class EditorWindow(ViewComponent):
-    def __init__(self, tracker):
-        super().__init__(tracker)
-        self.previous_page = PATTERN
-        self.x_pos = display.track_x_positions[7] + 100
-        self.y_pos = 2
-        self.title_h = 28
+class MenuPage:
+    def __init__(self, x, y, name, tracker):
+        self.clipboard = []
+        self.tracker = tracker
+        self.cursor_x = 0
+        self.cursor_y = 0
+        self.cell_h = 16
+        self.x = x
+        self.y = y + 4
+        self.y_actual = y
         self.w = 250
-        self.h = 702
+        self.h_closed = 35
+        self.h_open = 495
+        self.h_actual = self.h_closed
+        self.active = 0  # closed
+        self.name = name
+        self.y_offset = 0
+        self.h_offset = 0
+        self.force_update = True
 
-        self.title = TextBox(self.x_pos, self.y_pos, self.w, 28, "Editor", "zoom_font",
-                             themeing.BG_SEP, themeing.BG_COLOR)
+    def update_view(self, tracker, is_active):
+        pass
 
-        self.key_hints = KeyHints()
-        self.tracker.event_bus.subscribe(events.DETAIL_WINDOW_STATE_CHANGED, self.flag_state_change)
+    def move_cursor(self, x, y):
+        pass
+
+    def handle_select(self):
+        pass
+
+    def handle_delete(self, remove_steps):
+        pass
+
+    def handle_insert(self):
+        pass
+
+    def handle_param_adjust(self, increment):
+        pass
+
+    def move_in_place(self, x, y):
+        pass
+
+    def handle_copy(self):
+        pass
+
+    def handle_paste(self):
+        pass
+
+
+class StepPage(MenuPage):
+    def __init__(self, x, y, tracker):
+        super().__init__(x, y, "STEP", tracker)
+        self.clipboard = {"note": None, "component": None, "value": None}
+        self.image = self.tracker.renderer.step_page
+        self.bg = themeing.BG_TASKPANE
+        self.title = f"{self.name} 0"
+        self.cursor_x = 0
+        self.cursor_y = 0
+
+        self.note_color = (90, 255, 100)
+        self.velocity_color = (190, 90, 100)
+        self.components_color = (100, 100, 190)
+        self.component_p1_color = (50, 190, 190)
+        self.component_p2_color = (190, 50, 190)
+        self.cc_control_color = (255, 210, 80)
+        self.cc_value_color = (70, 200, 180)
+        self.notes = [None] * 4
+        self.velocities = [None] * 4
+        self.components = [None] * 4
+        self.component_p1 = [None] * 4
+        self.component_p2 = [None] * 4
+        self.cc_controls = [None] * 16
+        self.cc_values = [None] * 16
+
+        self.note_x = self.x + 72
+        self.note_w = 50
+        self.vel_x = self.x + 127
+        self.vel_w = 41
+        self.notes_y = [self.y_actual + 70, self.y_actual + 92, self.y_actual + 114, self.y_actual + 136]
+
+        self.components_x = 1019
+        self.components_w = 49
+        self.components_p1_x = 1077
+        self.components_p1_w = 39
+        self.components_p2_x = 1125
+        self.components_p2_w = 39
+        self.components_y = [188, 210, 232, 254]
+
+        self.cc_control_x1 = 988
+        self.cc_val_x1 = 1046
+        self.cc_control_x2 = 1097
+        self.cc_val_x2 = 1155
+        self.cc_control_w = 51
+        self.cc_val_w = 42
+        self.cc_y = [307, 329, 351, 373, 401, 422, 444, 467]
+
+    def move_cursor(self, x, y):
+        def get_max_x(curs_y):
+            if curs_y > 7:
+                return 3
+            elif curs_y > 3:
+                return 2
+            else:
+                return 1
+
+        if x != 0:
+            self.cursor_x = max(min(get_max_x(self.cursor_y), self.cursor_x + x), 0)
+        if y != 0:
+            self.cursor_y = (self.cursor_y + y) % 16
+            self.cursor_x = max(min(get_max_x(self.cursor_y), self.cursor_x), 0)
 
     def handle_select(self):
         step = self.tracker.get_selected_step()
@@ -38,23 +131,20 @@ class EditorWindow(ViewComponent):
                     if step.notes[self.cursor_y] != -1:
                         self.tracker.last_vel = step.velocities[self.cursor_y]
         elif self.cursor_y >= 8:
-            cc_index = self.cursor_y - 8
-            ccs = self.tracker.channel_ccs[sel_track_index]
-            if self.cursor_x == 0:
-                if ccs[cc_index] is not None:
-                    self.tracker.last_cc = ccs[cc_index]
+            if self.cursor_x in [0, 2]:
+                ccs = self.tracker.channel_ccs[sel_track_index]
+                cc_control_index = self.cursor_y if self.cursor_x == 2 else self.cursor_y - 8
+                if ccs[cc_control_index] is not None:
+                    self.tracker.last_cc = ccs[cc_control_index]
                 else:
                     cc_to_insert = self.tracker.last_cc
-                    while cc_to_insert in self.tracker.channel_ccs[sel_track_index]:
-                        cc_to_insert += 1
-                        if cc_to_insert == 127:
-                            cc_to_insert = 1
-                    self.tracker.update_channel_ccs(sel_track_index, cc_index, cc_to_insert)
-            if self.cursor_x == 1:
-                if step.ccs[self.cursor_y - 8] is not None:
+                    self.tracker.update_channel_ccs(sel_track_index, cc_control_index, cc_to_insert)
+            if self.cursor_x in [1, 3]:
+                cc_val_index = self.cursor_y if self.cursor_x == 3 else self.cursor_y - 8
+                if step.ccs[cc_val_index] is not None:
                     self.tracker.last_cc_val = step.ccs[self.cursor_y - 8]
                 else:
-                    step.update_cc(self.cursor_y - 8, self.tracker.last_cc_val)
+                    step.update_cc(cc_val_index, self.tracker.last_cc_val)
         return 1
 
     def handle_delete(self, remove_steps):
@@ -85,76 +175,328 @@ class EditorWindow(ViewComponent):
     def handle_insert(self):
         pass
 
-    def adjust_note(self, step, note_index, increment):
+    def handle_copy(self):
+        if self.cursor_y < 4:
+            step = self.tracker.get_selected_step()
+            if self.cursor_x == 0:
+                self.clipboard["note"] = step.notes[self.cursor_y]
+            elif self.cursor_x == 1:
+                self.clipboard["value"] = step.velocities[self.cursor_y]
+        elif 4 <= self.cursor_y < 8:
+            step = self.tracker.get_selected_step()
+            if self.cursor_x == 0:
+                self.clipboard["component"] = step.components[self.cursor_y - 4]
+            else:
+                self.clipboard["value"] = step.components[self.cursor_y - 4]
+        elif self.cursor_y >= 8:
+            sel_track_index = self.tracker.pages[PATTERN].cursor_x
+            if self.cursor_x in [0, 2]:
+                cc_index = self.cursor_y if self.cursor_x == 2 else self.cursor_y - 8
+                self.clipboard["value"] = self.tracker.channel_ccs[sel_track_index][cc_index]
+            elif self.cursor_x in [1, 3]:
+                cc_index = self.cursor_y - 8
+                self.clipboard["value"] = self.tracker.get_selected_step().ccs[cc_index]
+
+    def handle_param_adjust(self, increment, axis=False):
+        step = self.tracker.get_selected_step()
+        if self.cursor_y < 4:
+            self.adjust_note(step, self.cursor_y, increment, preview=(not axis))
+        elif 4 <= self.cursor_y < 8:
+            self.adjust_component(step, self.cursor_y - 4, increment, preview=(not axis))
+        elif self.cursor_y >= 8:
+            cc_index = self.cursor_y - 8 if self.cursor_x in [0, 1] else self.cursor_y
+            self.adjust_cc(step, cc_index, increment, preview=(not axis))
+
+    def adjust_note(self, step, note_index, increment, preview=True):
         if step.notes[note_index] is not None:
             if self.cursor_x == 0:
                 new_note = max(min(131, step.notes[note_index] + increment), 0)
                 self.tracker.last_note = step.update_note(note_index, new_note)
             elif self.cursor_x == 1:
                 increment = 10 if increment == 12 else (-10 if increment == -12 else increment)
-                new_vel = max(min(99, step.velocities[note_index] + increment), 0)
+                new_vel = max(min(127, step.velocities[note_index] + increment), 0)
                 self.tracker.last_vel = step.update_velocity(note_index, new_vel)
-        self.tracker.preview_step()
+        if preview:
+            self.tracker.preview_step(notes_only=True)
 
-    def adjust_component(self, step, component_index, increment):
-        self.tracker.preview_step()
+    def adjust_component(self, step, component_index, increment, preview=True):
+        pass
 
-    def adjust_cc(self, step, cc_index, increment):
+    def adjust_cc(self, step, cc_index, increment, preview=True):
         sel_track_index = self.tracker.pages[PATTERN].cursor_x
         increment = 10 if increment == 12 else (-10 if increment == -12 else increment)
-        if self.cursor_x == 0:
+        if self.cursor_x in [0, 2]:
             current_cc = self.tracker.channel_ccs[sel_track_index][cc_index]
             if current_cc is not None:
                 new = max(min(127, current_cc + increment), 1)
-                while new in self.tracker.channel_ccs[sel_track_index]:
-                    if increment == -10 or increment == 10:
-                        increment //= 10
-                    new = max(min(127, new + increment), 1)
-                    if new == 1 or new == 127:
-                        return
                 self.tracker.update_channel_ccs(sel_track_index, cc_index, new)
-        elif self.cursor_x == 1:
+        elif self.cursor_x in [1, 3]:
             if step.ccs[cc_index] is not None:
                 new_cc_val = max(min(127, step.ccs[cc_index] + increment), 0)
                 self.tracker.last_cc_val = step.update_cc(cc_index, new_cc_val)
             else:
                 step.update_cc(cc_index, self.tracker.last_cc_val)
-        self.tracker.preview_step()
+            self.tracker.midi_handler.send_cc(sel_track_index, cc_index+1, self.tracker.last_cc_val)
 
-    def handle_param_adjust(self, increment):
-        step = self.tracker.get_selected_step()
-        if self.cursor_y < 4:
-            self.adjust_note(step, self.cursor_y, increment)
-        elif 4 <= self.cursor_y < 8:
-            self.adjust_component(step, self.cursor_y - 4, increment)
-        elif self.cursor_y >= 8:
-            self.adjust_cc(step, self.cursor_y - 8, increment)
+        if preview:
+            self.tracker.preview_step(notes_only=True)
+
+    def draw_notes(self, step, sel_table, is_active, render_queue):
+        for i, note in enumerate(self.notes):
+            note_text = midi_to_note(step.notes[i]) if step.notes[i] is not None else "---"
+            self.notes[i] = note_text
+            if sel_table == 0 and self.cursor_y == i and self.cursor_x == 0:
+                text_col = themeing.BLACK
+                bg_col = themeing.CURSOR_COLOR if is_active else themeing.CURSOR_COLOR_ALT
+            else:
+                bg_col, text_col = self.bg, self.note_color
+            render_queue.appendleft([RECT, bg_col, self.note_x - 3, self.notes_y[i], self.note_w, self.cell_h, 0])
+            render_queue.appendleft([TEXT, "textbox_font", text_col, note_text, self.note_x + 11, self.notes_y[i], 0])
+
+            vel_text = f'{step.velocities[i]:0>2}' if step.velocities[i] is not None else "--"
+            self.velocities[i] = vel_text
+            if sel_table == 0 and self.cursor_y == i and self.cursor_x == 1:
+                text_col = themeing.BLACK
+                bg_col = themeing.CURSOR_COLOR if is_active else themeing.CURSOR_COLOR_ALT
+            else:
+                bg_col, text_col = self.bg, self.velocity_color
+            render_queue.appendleft([RECT, bg_col, self.vel_x, self.notes_y[i], self.vel_w, self.cell_h, 0])
+            render_queue.appendleft([TEXT, "textbox_font", text_col, vel_text, self.vel_x + 12, self.notes_y[i], 0])
+
+    def draw_components(self, step, sel_table, is_active, render_queue):
+        for i, component in enumerate(self.components):
+            step_component = step.components[i]
+            if step_component is None:
+                component_text = "---"
+            else:
+                component_text = f"{step_component[i][0]}"
+            self.components[i] = component_text
+            if sel_table == 1 and self.cursor_y == i + 4 and self.cursor_x == 0:
+                text_col = themeing.BLACK
+                bg_col = themeing.CURSOR_COLOR if is_active else themeing.CURSOR_COLOR_ALT
+            else:
+                bg_col, text_col = self.bg, self.components_color
+            render_queue.appendleft([RECT, bg_col, self.components_x - 3, self.components_y[i], 52, 16, 0])
+            render_queue.appendleft([TEXT, "textbox_font", text_col, component_text, self.components_x + 11, self.components_y[i], 0])
+
+            if step_component is None:
+                component_p1_text = "--"
+            else:
+                component_p1_text = f"{step_component[i][1]}"
+            self.component_p1[i] = component_p1_text
+            if sel_table == 1 and self.cursor_y == i + 4 and self.cursor_x == 1:
+                text_col = themeing.BLACK
+                bg_col = themeing.CURSOR_COLOR if is_active else themeing.CURSOR_COLOR_ALT
+            else:
+                bg_col, text_col = self.bg, self.component_p1_color
+            render_queue.appendleft([RECT, bg_col, self.components_p1_x - 3, self.components_y[i], 42, 16, 0])
+            render_queue.appendleft([TEXT, "textbox_font", text_col, component_p1_text,
+                                     self.components_p1_x + 11, self.components_y[i], 0])
+
+            if step_component is None:
+                component_p2_text = "--"
+            else:
+                component_p2_text = f"{step_component[i][2]}"
+            self.component_p2[i] = component_p2_text
+            if sel_table == 1 and self.cursor_y == i + 4 and self.cursor_x == 2:
+                text_col = themeing.BLACK
+                bg_col = themeing.CURSOR_COLOR if is_active else themeing.CURSOR_COLOR_ALT
+            else:
+                bg_col, text_col = self.bg, self.component_p2_color
+            render_queue.appendleft([RECT, bg_col, self.components_p2_x - 3, self.components_y[i], 42, 16, 0])
+            render_queue.appendleft([TEXT, "textbox_font", text_col, component_p2_text,
+                                     self.components_p2_x + 11, self.components_y[i], 0])
+
+    def draw_ccs(self, step, sel_table, is_active, channel_ccs, render_queue):
+        def get_colors(sel_table, is_active, i, x, is_control=True):
+            if sel_table == 2 and self.cursor_y == i and self.cursor_x == x:
+                text_col = themeing.BLACK
+                bg_col = themeing.CURSOR_COLOR if is_active else themeing.CURSOR_COLOR_ALT
+            else:
+                bg_col, text_col = self.bg, self.cc_control_color if is_control else self.cc_value_color
+            return text_col, bg_col
+
+        for i in range(8):
+            cc_control_text_left = f"{channel_ccs[i]:0>3}" if channel_ccs is not None else "---"
+            cc_control_text_right = f"{channel_ccs[i + 8]:0>3}" if channel_ccs is not None else "---"
+            cc_value_text_left = f"{step.ccs[i]:0>3}" if step.ccs[i] is not None else "---"
+            cc_value_text_right = f"{step.ccs[i + 8]:0>3}" if step.ccs[i + 8] is not None else "---"
+
+            self.cc_controls[i] = cc_control_text_left
+            self.cc_controls[i + 8] = cc_control_text_right
+            self.cc_values[i] = cc_value_text_left
+            self.cc_values[i + 8] = cc_value_text_right
+
+            text_col, bg_col = get_colors(sel_table, is_active, i+8, 0)
+            render_queue.appendleft([RECT, bg_col, self.cc_control_x1 - 3, self.cc_y[i],
+                                     self.cc_control_w, self.cell_h, 0])
+            render_queue.appendleft([TEXT, "textbox_font", text_col, cc_control_text_left,
+                                     self.cc_control_x1 + 11, self.cc_y[i], 0])
+
+            text_col, bg_col = get_colors(sel_table, is_active, i+8, 1, is_control=False)
+            render_queue.appendleft([RECT, bg_col, self.cc_val_x1 - 3, self.cc_y[i],
+                                     self.cc_val_w, self.cell_h, 0])
+            render_queue.appendleft([TEXT, "textbox_font", text_col, cc_value_text_left,
+                                     self.cc_val_x1 + 6, self.cc_y[i], 0])
+
+            text_col, bg_col = get_colors(sel_table, is_active, i+8, 2)
+            render_queue.appendleft([RECT, bg_col, self.cc_control_x2 - 3, self.cc_y[i],
+                                     self.cc_control_w, self.cell_h, 0])
+            render_queue.appendleft([TEXT, "textbox_font", text_col, cc_control_text_right,
+                                     self.cc_control_x2 + 11, self.cc_y[i], 0])
+
+            text_col, bg_col = get_colors(sel_table, is_active, i+8, 3, is_control=False)
+            render_queue.appendleft([RECT, bg_col, self.cc_val_x2 - 3, self.cc_y[i],
+                                     self.cc_val_w, self.cell_h, 0])
+            render_queue.appendleft([TEXT, "textbox_font", text_col, cc_value_text_right,
+                                     self.cc_val_x2 + 6, self.cc_y[i], 0])
+
+    def update_view(self, tracker, is_active):
+        step = tracker.get_selected_step()
+        if step is None:
+            # set cells to empty or n/a here
+            return
+
+        step_index = tracker.pages[PATTERN].cursor_y
+        self.title = f"{self.name} {step_index}"
+        if is_active:
+            tracker.renderer.render_queue.appendleft([RECT, themeing.CURSOR_COLOR, self.x, self.y_actual,
+                                                      self.w, self.h_actual, 2])
+        else:
+            tracker.renderer.render_queue.appendleft([RECT, themeing.BG_TASKPANE_HL, self.x, self.y_actual,
+                                                      self.w, self.h_actual, 2])
+
+        tracker.renderer.render_queue.appendleft([RECT, themeing.BG_TASKPANE_HL, self.x+2, self.y_actual+2, self.w-4, self.h_closed-4, 0])
+        tracker.renderer.render_queue.appendleft([TEXT, "tracker_font", themeing.WHITE, self.title,
+                                                  self.x + 6, self.y_actual + 8, 0])
+
+        sel_table = 2 if self.cursor_y > 7 else 1 if self.cursor_y > 3 else 0
+        self.draw_notes(step, sel_table, is_active, tracker.renderer.render_queue)
+        self.draw_components(step, sel_table, is_active, tracker.renderer.render_queue)
+        curr_track = tracker.get_selected_track()
+        channel_ccs = tracker.channel_ccs[curr_track.channel] if curr_track is not None else None
+        self.draw_ccs(step, sel_table, is_active, channel_ccs, tracker.renderer.render_queue)
+
+        self.force_update = False
+
+class TrackPage(MenuPage):
+    def __init__(self, x, y, tracker):
+        super().__init__(x, y, "TRACK", tracker)
+        self.image = self.tracker.renderer.track_page
+        self.cursor_x = 0
+        self.cursor_y = 0
+
+
+class PatternPage(MenuPage):
+    def __init__(self, x, y, tracker):
+        super().__init__(x, y, "PATTERN", tracker)
+        self.image = self.tracker.renderer.pattern_page
+        self.cursor_x = 0
+        self.cursor_y = 0
+
+
+class PhrasePage(MenuPage):
+    def __init__(self, x, y, tracker):
+        super().__init__(x, y, "PHRASE", tracker)
+        self.image = self.tracker.renderer.phrase_page
+        self.cursor_x = 0
+        self.cursor_y = 0
+
+
+class EditorWindow(ViewComponent):
+    def __init__(self, tracker):
+        super().__init__(tracker)
+        self.previous_page = PATTERN
+        self.x_pos = display.editor_window_x # 966
+
+        self.y_pos = 2
+        self.title_h = 28
+        self.w = 250
+        self.h = 600
+
+        self.tracker.event_bus.subscribe(events.EDITOR_WINDOW_STATE_CHANGED, self.flag_state_change)
+
+        self.curr_page = 0
+        page_h_closed = 35
+        self.pages = [StepPage(self.x_pos, 0, self.tracker),
+                      TrackPage(self.x_pos, page_h_closed, self.tracker),
+                      PatternPage(self.x_pos, page_h_closed * 2, self.tracker),
+                      PhrasePage(self.x_pos, page_h_closed * 3, self.tracker)]
+        self.pages[self.curr_page].active = 1
+        self.open_page(self.curr_page)
+
+    def open_page(self, page_index, increment=None):
+        if increment is not None:
+            page_index = (self.curr_page + increment) % 4
+
+        for i, page in enumerate(self.pages):
+            if i == page_index:
+                page.active = 1
+                page.h_actual = page.h_open
+                page.y_actual = page.y
+
+            else:
+                page.active = 0
+                page.h_actual = page.h_closed
+                if i > page_index:
+                    page.y_actual = (page.y + 495) - 35
+                else:
+                    page.y_actual = page.y
+
+        self.curr_page = page_index
+        self.update_page_view()
+        self.pages[self.curr_page].update_view(self.tracker, self.active)
+        self.key_hints = KeyHints()
+
+    def update_page_view(self):
+        render_queue = self.tracker.renderer.render_queue
+        for page in self.pages:
+            if page.active:
+                render_queue.appendleft([IMAGE, page.image, page.x, page.y_actual, 0])
+                if self.active:
+                    outline, txt_col = themeing.CURSOR_COLOR, themeing.CURSOR_COLOR
+                else:
+                    outline, txt_col = themeing.BG_TASKPANE_HL, themeing.WHITE
+            else:
+                bg, outline, txt_col = themeing.BG_COLOR, themeing.BG_TASKPANE, themeing.WHITE
+                render_queue.appendleft([RECT, bg, page.x, page.y_actual, page.w, page.h_actual, 0])
+
+            render_queue.appendleft([RECT, outline, page.x, page.y_actual, page.w, page.h_actual, 2])
+            render_queue.appendleft([TEXT, "tracker_font", txt_col, page.name, page.x + 6, page.y_actual + 8, 0])
+
+
+
+
+    def handle_select(self):
+        self.pages[self.curr_page].handle_select()
+        self.flag_state_change()
+
+    def handle_delete(self, remove_steps):
+        self.pages[self.curr_page].handle_delete(remove_steps)
+        self.flag_state_change()
+
+    def handle_insert(self):
+        self.pages[self.curr_page].handle_insert()
+        self.flag_state_change()
+
+    def handle_param_adjust(self, increment, axis=False):
+        self.pages[self.curr_page].handle_param_adjust(increment, axis)
+        self.flag_state_change()
 
     def move_in_place(self, x, y):
-        pass
+        self.pages[self.curr_page].move_in_place(x, y)
+        self.flag_state_change()
 
     def handle_copy(self):
-        pass
+        self.pages[self.curr_page].handle_copy()
+        self.flag_state_change()
 
     def handle_paste(self):
-        pass
+        self.pages[self.curr_page].handle_paste()
+        self.flag_state_change()
 
     def move_cursor(self, x, y, expand_selection=False):
-        if self.active:
-            print("editor window active")
-        def get_max_x(curs_y):
-            if curs_y > 7:
-                return 2
-            elif curs_y > 3:
-                return 3
-            else:
-                return 2
-
-        if x != 0:
-            self.cursor_x = max(min(get_max_x(self.cursor_y), self.cursor_x + x), 0)
-        if y != 0:
-            self.cursor_y = (self.cursor_y + y) % 16
-        self.cursor_x %= get_max_x(self.cursor_y)
+        self.pages[self.curr_page].move_cursor(x, y)
         self.flag_state_change()
 
     def render_key_hints(self):
@@ -168,101 +510,6 @@ class EditorWindow(ViewComponent):
         if not self.state_changed:
             return
 
-        if not self.active and self.tracker.page != PATTERN:
-            return
-
-        render_queue = self.tracker.renderer.render_queue
-
-        color = themeing.CURSOR_COLOR if self.active else themeing.LINE_16_HL_BG
-        render_queue.appendleft([RECT, color, self.x_pos, self.y_pos, self.w, self.h, 2])
-        render_queue.appendleft([RECT, themeing.BG_COLOR, self.x_pos + 2, self.y_pos + 2,
-                                 self.w - 4, display.detail_window_replace_bg_h, 0])
-
-        if self.previous_page == PATTERN:
-            track = self.tracker.get_selected_track()
-            step = self.tracker.get_selected_step(track)
-
-            render_queue.appendleft([RECT, themeing.LINE_16_HL_BG, self.x_pos + 2, self.y_pos + 2,
-                                     self.w - 4, display.detail_window_title_h, 0])
-
-            cursor_x = self.tracker.pages[PATTERN].cursor_x
-            cursor_y = self.tracker.pages[PATTERN].cursor_y
-            tr = f"{cursor_x}"
-            cursor_col = themeing.CURSOR_COLOR if self.tracker.page == EDITOR else themeing.BG_SEP
-            text = f"TRK:{tr} STP:{cursor_y}" if step is not None else f"TRK:{tr} STP:--"
-            render_queue.appendleft([TEXT, "zoom_font", cursor_col, text, self.x_pos + 12, self.y_pos + 2, 0])
-
-            start_y = 44
-            x_pos = self.x_pos + 6
-            if not track.is_master:
-                if step is not None:
-                    render_queue.appendleft([TEXT, "zoom_font", (100, 255, 100), "Notes:", x_pos + 4, start_y, 0])
-                    for i, note in enumerate(step.notes):
-                        y = start_y + 30 + (29 * i)
-                        if note is not None:
-                            note_text = midi_to_note(note)
-                            vel_text = f'{step.velocities[i]:0>2}'
-                        else:
-                            note_text = "---"
-                            vel_text = "--"
-                        render_queue.appendleft([TEXT, "zoom_font", (100, 255, 100), note_text, x_pos + 4, y + 2, 0])
-                        render_queue.appendleft([TEXT, "zoom_font", (255, 150, 150), vel_text, x_pos + 77, y + 2, 0])
-                        if self.cursor_y == i and self.cursor_x == 0:  # on note
-                            render_queue.appendleft([RECT, cursor_col, x_pos, y + 4, 56, 30, 2])
-                        elif self.cursor_y == i and self.cursor_x == 1:  # on vel
-                            render_queue.appendleft([RECT, cursor_col, x_pos + 70, y + 4, 48, 30, 2])
-
-                    render_queue.appendleft(
-                        [TEXT, "zoom_font", (150, 255, 255), "Commands:", x_pos + 4, start_y + (29 * 4) + 36, 0])
-                    for i, component in enumerate(step.components):
-                        y = start_y + (29 * i) + 184
-                        if component is not None:
-                            elems = component
-                        else:
-                            elems = ["---", "--", "--"]
-
-                        render_queue.appendleft([TEXT, "zoom_font", (150, 255, 255), elems[0], x_pos + 4, y, 0])
-                        render_queue.appendleft([TEXT, "zoom_font", (255, 150, 255), elems[1], x_pos + 77, y, 0])
-                        render_queue.appendleft([TEXT, "zoom_font", (255, 255, 150), elems[2], x_pos + 134, y, 0])
-
-                        if self.cursor_y == i + 4 and self.cursor_x == 0:  # on component
-                            render_queue.appendleft([RECT, cursor_col, x_pos, y + 2, 56, 30, 2])
-                        elif self.cursor_y == i + 4 and self.cursor_x == 1:  # on p1
-                            render_queue.appendleft([RECT, cursor_col, x_pos + 70, y + 2, 48, 30, 2])
-                        elif self.cursor_y == i + 4 and self.cursor_x == 2:  # on p2
-                            render_queue.appendleft([RECT, cursor_col, x_pos + 127, y + 2, 48, 30, 2])
-
-                    y = start_y + 306
-
-                    track_ccs = self.tracker.channel_ccs[cursor_x]
-
-                    for i in range(8):
-
-                        cc = f"{track_ccs[i]:0>3}" if track_ccs[i] is not None else "---"
-                        val = f"{step.ccs[i]:0>3}" if step.ccs[i] is not None else "---"
-
-                        cc_color, val_col = (255, 255, 80), (255, 180, 255)
-
-                        render_queue.appendleft(
-                            [TEXT, "tracker_font", (200, 200, 255), f"CC:", x_pos + 8, y + (26 * i) + 13, 0])
-
-                        render_queue.appendleft(
-                            [TEXT, "zoom_font", cc_color, f"{cc}", x_pos + 52, y + (26 * i) + 4, 0])
-                        render_queue.appendleft(
-                            [TEXT, "zoom_font", val_col, f"{val}", x_pos + 120, y + (26 * i) + 4, 0])
-
-                        if self.cursor_y == i + 8:  # col 1
-                            if self.cursor_x == 0:
-                                render_queue.appendleft([RECT, cursor_col, x_pos + 48, y + (26 * i) + 4, 56, 30, 2])
-                            elif self.cursor_x == 1:
-                                render_queue.appendleft([RECT, cursor_col, x_pos + 117, y + (26 * i) + 4, 56, 30, 2])
-
-                    p_x, p_y = x_pos + 192, y + 90
-                    render_queue.appendleft(
-                        [POLYGON, themeing.WHITE, ((p_x, p_y), (p_x + 5, p_y - 5), (p_x + 10, p_y)), 0])
-                    render_queue.appendleft(
-                        [POLYGON, themeing.WHITE, ((p_x, p_y + 20), (p_x + 5, p_y + 25), (p_x + 10, p_y + 20)), 0])
-
-            self.render_key_hints()
-
+        self.pages[self.curr_page].update_view(self.tracker, self.active)
+        self.render_key_hints()
         self.state_changed = False

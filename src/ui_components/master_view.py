@@ -80,7 +80,7 @@ class MasterTrack(ViewComponent):
 
         self.selected_rows = self.get_selected_rows()
         self.flag_state_change()
-        self.tracker.event_bus.publish(events.DETAIL_WINDOW_STATE_CHANGED)
+        self.tracker.event_bus.publish(events.EDITOR_WINDOW_STATE_CHANGED)
 
     def update_row_number_view(self, pattern, render_queue):
         if not self.active:

@@ -33,7 +33,7 @@ class ViewComponent:
     def handle_insert(self):
         pass
 
-    def handle_param_adjust(self, increment):
+    def handle_param_adjust(self, increment, axis=False):
         pass
 
     def move_in_place(self, x, y):

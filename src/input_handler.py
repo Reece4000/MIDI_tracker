@@ -133,10 +133,7 @@ class InputHandler:
         # self.mods["alt"] = (mods & pygame.KMOD_LALT) or joy_r1
         # self.mods["shift"] = (mods & pygame.KMOD_LSHIFT) or joy_l2
 
-        if self.mods["l1"] and self.mods["r1"]:
-            self.tracker.activate_editor_window()
-        else:
-            self.tracker.deactivate_editor_window()
+
 
     def handle_save(self):
         self.tracker.save_song()
@@ -150,20 +147,14 @@ class InputHandler:
     def handle_duplicate(self):
         self.tracker.handle_duplicate()
 
-    @timing_decorator
-    def handle_copy(self):
-        self.tracker.copy_selection()
-
-    @timing_decorator
-    def handle_paste(self):
-        self.tracker.paste_selection()
-
     def handle_tab(self):
         self.tracker.page_switch(-1 if self.mods["shift"] else 1)
 
     def handle_up(self, repeat_press=False):
         if self.joy_btn_state[2]["Held"] and self.mods["r1"]:
             self.tracker.move_in_place(0, -1)
+        elif self.mods["r1"] and self.tracker.page == EDITOR:
+            self.tracker.pages[EDITOR].open_page(page_index=None, increment=-1)
         elif self.joy_btn_state[0]["Held"] or self.select_held:
             self.tracker.handle_param_adjust(12)
         elif self.mods["ctrl"] and self.mods["alt"]:
@@ -179,6 +170,8 @@ class InputHandler:
     def handle_down(self, repeat_press=False):
         if self.joy_btn_state[2]["Held"] and self.mods["r1"]:
             self.tracker.move_in_place(0, 1)
+        elif self.mods["r1"] and self.tracker.page == EDITOR:
+            self.tracker.pages[EDITOR].open_page(page_index=None, increment=1)
         elif self.joy_btn_state[0]["Held"] or self.select_held:
             self.tracker.handle_param_adjust(-12)
         elif self.mods["ctrl"] and self.mods["alt"]:
@@ -220,7 +213,7 @@ class InputHandler:
             self.tracker.move_in_place(x=1, y=0)
         elif self.mods["l1"]:  # L1
             if not repeat_press:
-                self.handle_paste()
+                self.tracker.handle_paste()
         elif self.joy_btn_state[0]["Held"] or self.select_held:
             self.tracker.handle_param_adjust(1)
             return
@@ -322,9 +315,9 @@ class InputHandler:
         }
 
         if self.mods["ctrl"] and key == pygame.K_c:
-            self.handle_copy()
+            self.tracker.handle_copy()
         elif self.mods["ctrl"] and key == pygame.K_v:
-            self.handle_paste()
+            self.tracker.handle_paste()
         elif self.mods["ctrl"] and key == pygame.K_s:
             self.handle_save()
         elif self.mods["ctrl"] and key == pygame.K_l:
@@ -332,7 +325,7 @@ class InputHandler:
         elif self.mods["ctrl"] and key == pygame.K_n:
             self.handle_new()
         elif self.mods["ctrl"] and key == pygame.K_d:
-            self.handle_duplicate()
+            self.tracker.handle_duplicate()
         elif key == pygame.K_HASH:
             self.tracker.toggle_mute()
         elif key in key_action_mapping:
@@ -354,19 +347,21 @@ class InputHandler:
             self.handle_left(repeat_press)
 
         elif button == self.joy_btn_mapping["Start"]:
-            self.handle_paste()
+            if not repeat_press:
+                self.tracker.toggle_editor_window()
 
         elif button == self.joy_btn_mapping["Triangle"]:
             if self.mods["r1"]:
-                self.tracker.copy_selection()
+                self.tracker.handle_copy()
             else:
-                self.handle_play_pause()
+                if not repeat_press:
+                    self.handle_play_pause()
 
         elif button == self.joy_btn_mapping["Circle"]:
             if self.mods["l1"] and self.mods["r1"]:
                 pass
-            elif self.mods["r1"] and not self.tracker.renderer.step_detail_window_widget.active:
-                self.tracker.paste_selection()
+            elif self.mods["r1"]:
+                self.tracker.handle_paste()
             elif self.mods["l1"]:
                 self.tracker.handle_delete(remove_steps=True)
             else:
@@ -378,8 +373,8 @@ class InputHandler:
                 pass
             elif self.mods["l1"]:  # L1
                 self.tracker.insert()
-            elif self.mods["r1"] and not self.tracker.page == EDITOR:
-                self.tracker.page = 4
+            elif self.mods["r1"]:
+                self.tracker.toggle_editor_window()
             else:
                 if not self.joy_btn_state[0]["Held"]:
                     self.handle_select_press()
@@ -405,9 +400,9 @@ class InputHandler:
                 start_time = state["Time Pressed"]
                 if (time - start_time) > self.axis_repeat_interval:
                     if axis == 5 and self.joy_btn_state[0]["Held"]:
-                        self.tracker.update_vel(1, preview=False)
+                        self.tracker.handle_param_adjust(1, axis=True)
                     elif axis == 4 and self.joy_btn_state[0]["Held"]:
-                        self.tracker.update_vel(-1, preview=False)
+                        self.tracker.handle_param_adjust(-1, axis=True)
                     state["Time Pressed"] = time
 
     def handle_joystick_event(self, event, time):
@@ -436,7 +431,7 @@ class InputHandler:
                 # Handle axis movement and state
                 if not self.joy_axis_state[event.axis]["Held"]:
                     if self.joy_btn_state[0]["Held"]:
-                        self.tracker.update_vel(-inc if event.axis == 4 else inc, preview=False)
+                        self.tracker.handle_param_adjust(-inc if event.axis == 4 else inc, axis=True)
 
                 if event.value < -1:
                     if self.joy_axis_state[event.axis]["Held"]:

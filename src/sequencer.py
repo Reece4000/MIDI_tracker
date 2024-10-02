@@ -1,6 +1,7 @@
 from threading import Thread, Lock, Event, BoundedSemaphore
 from time import perf_counter
 import time
+import pygame
 from src.tracks import MasterTrack, MidiTrack
 from src.midi_handler import MidiHandler
 from src.utils import timing_decorator

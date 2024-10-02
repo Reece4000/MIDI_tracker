@@ -20,13 +20,14 @@ class UiComponent:
 
 
 class TextBox:
-    def __init__(self, x, y, w, h, text, font, text_color, bg_color):
+    def __init__(self, x, y, w, h, text, text_color, bg_color):
         self.x = x
         self.y = y
         self.w = w
         self.h = h
         self.text = text
-        self.font = font
+        self.font = "textbox_font"
+        self.force = False
 
         # text, font, color, bg_color
         self.state = [text, text_color, bg_color]
@@ -35,9 +36,16 @@ class TextBox:
         return self.update(self.text, self.state[1], self.state[2])
 
     def update(self, new_text, new_text_color, new_bg_color):
-        self.state = [new_text, new_text_color, new_bg_color]
-        return [[RECT, self.state[2], self.x, self.y, self.w, self.h, 0],
-                [TEXT, self.font, self.state[1], self.state[0], self.x + 7, self.y, 0]]
+        if self.force:
+            self.state = [new_text, new_text_color, new_bg_color]
+            return [[RECT, self.state[2], self.x, self.y, self.w, self.h, 0],
+                    [TEXT, self.font, self.state[1], self.state[0], self.x + 7, self.y, 0]]
+
+        if [new_text, new_text_color, new_bg_color] != self.state:
+            self.state = [new_text, new_text_color, new_bg_color]
+            return [[RECT, self.state[2], self.x, self.y, self.w, self.h, 0],
+                    [TEXT, self.font, self.state[1], self.state[0], self.x + 7, self.y, 0]]
+        return []
 
 
 class Button(UiComponent):
@@ -75,7 +83,7 @@ class KeyHints:
     def __init__(self):
         self.x1 = display.pattern_area_width + display.timeline_width + display.col_w - 2
         self.x2 = self.x1 + 141
-        self.y = display.display_h - 80
+        self.y = display.display_h - 84
 
         self.img_x = display.pattern_area_width + display.timeline_width + 45
         self.img_y = display.display_h - 92
@@ -88,13 +96,12 @@ class KeyHints:
         elems = []
         if items != self.current_items:
             self.current_items = items
-            elems.append([RECT, themeing.BG_SEP, self.img_x, self.img_y - 24, 54, 22, 0])
-            elems.append([RECT, themeing.BG_SEP, self.img_x + 56, self.img_y - 24, 40, 22, 0])
 
-            elems.append([RECT, themeing.BG_SEP, self.img_x + 144, self.img_y - 24, 40, 22, 0])
-            elems.append([RECT, themeing.BG_SEP, self.img_x + 186, self.img_y - 24, 54, 22, 0])
+            elems.append([RECT, themeing.LINE_16_HL_BG, display.track_x_positions[7] + 100,
+                          606, 250, 96, 0])
 
-            elems.append([RECT, (100, 180, 220), self.img_x, self.img_y, 240, 86, 0])
+            elems.append([RECT, themeing.BG_COLOR, display.track_x_positions[7] + 102,
+                          608, 246, 92, 0])
 
             to_render = [[ self.x1, self.y + 4, items[0][0]],         [ self.x1, self.y + 52, items[0][1]],
                          [ self.x1 - 24, self.y + 28, items[0][2]],   [ self.x1 + 24, self.y + 28, items[0][3]],
@@ -103,7 +110,8 @@ class KeyHints:
                          [self.x2 - 25, self.y + 29, items[1][2]],    [self.x2 + 25, self.y + 29, items[1][3]]]
 
             for itm in to_render:
-                elems.append([CIRCLE, (20, 20, 20), (itm[0] + 12, itm[1] + 4), 15, 0])
+                elems.append([CIRCLE, (40, 65, 65), (itm[0] + 12, itm[1] + 4), 15, 0])
+                elems.append([CIRCLE, (100, 255, 255), (itm[0] + 12, itm[1] + 4), 15, 1])
                 elems.append([TEXT, "tracker_info_font", themeing.WHITE, itm[2], itm[0], itm[1], 0])
 
             self.current_items = items
@@ -382,7 +390,7 @@ class TimelineCell(UiComponent):
         self.x = 0
         self.y = y
         self.x_screen = x - 2
-        self.y_screen = display.menu_height - 5 + (y * display.row_h) + display.row_h * 8
+        self.y_screen = display.timeline_area_y + (y * display.row_h)
 
         # text, text color, cursor, bg
         self.state = [None, None, None, None]
@@ -453,7 +461,7 @@ class TrackBox(UiComponent):
             x, y, w, h = self.x_screen, self.y_screen, display.col_w - 1, display.menu_height - 4
 
             # track bg
-            render_queue.appendleft([RECT, bg_col, x + 3, y + 5, w - 5, h - 7, 0])
+            render_queue.appendleft([RECT, bg_col, x + 3, y + 5, w - 6, h - 8, 0])
             render_queue.appendleft([RECT, outline_bg, x, y + 2, w, h - 3, 2])
 
             start_x = x + display.col_w // 2  # Calculate the width of the text to center it correctly
@@ -588,7 +596,7 @@ class OptionWindow:
                 self.set_page()
             if force_redraw and self.track_index is not None:
                 for cell in self.renderer.cells[self.track_index][:8]:
-                    cell.force = True
+                    cell.force_update = True
             return
 
         if y != 0:
