@@ -282,8 +282,8 @@ class PatternCell(UiComponent):
                 render_queue.appendleft([LINE, themeing.PLAYHEAD_COLOR, (x, y_pos), (x + w, y_pos), 2])
             if components:
                 offset = 8
-                for i, (component, color) in enumerate(components):  # step_text
-                    render_queue.appendleft([TEXT, "tracker_font", color, component, x + offset, y + 2, 0])
+                for (text, color) in components:  # step_text
+                    render_queue.appendleft([TEXT, "tracker_font", color, text, x + offset, y + 2, 0])
                     offset += 29
 
             if tl or tr or bl or br:

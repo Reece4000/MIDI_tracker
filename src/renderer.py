@@ -61,17 +61,16 @@ class Renderer:
         pygame.quit()
 
     def toggle_fullscreen(self):
+        pass  # may be more hassle than it's worth
+        """
         self.fullscreen = not self.fullscreen
-        pygame.display.quit()
-        pygame.display.init()
         if self.fullscreen:
             self.screen = pygame.display.set_mode((display.display_w, display.display_h), pygame.FULLSCREEN)
         else:
             self.screen = pygame.display.set_mode((display.display_w, display.display_h))
 
-        self.tracker.event_bus.publish(events.TRACKER_INITIALISED)
-        self.tracker.event_bus.publish(events.ALL_STATES_CHANGED)
-        self.initialise()
+        self.tracker.event_bus.publish(events.RENDERER_INITIALISED)
+        """
 
     def render_element_from_queue(self):
         e = self.render_queue.pop()
@@ -174,8 +173,6 @@ class Renderer:
         self.render_cycle += 1
 
     def process_queue(self):
-        if len(self.render_queue) > 0:
-            print(len(self.render_queue))
         while self.render_queue:
             self.render_element_from_queue()
 

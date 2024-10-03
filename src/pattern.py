@@ -1,19 +1,17 @@
 from src.tracks import MasterTrack, MidiTrack
 from config import constants
+from config.scales import *
 
 class Pattern:
     def __init__(self, num, length, lpb, bpm, swing, tracker):
-        scales = [
-            "Ion", "Dor", "Phr", "Lyd", "Mix", "Aeo", "Loc"
-        ]
         self.tracker = tracker
         self.num = num
         self.bpm = bpm
-        self.master_track = MasterTrack(length, lpb, tracker=tracker)
-        self.midi_tracks = [MidiTrack(i, length, lpb, tracker=tracker) for i in range(constants.track_count)]
+        self.master_track = MasterTrack(length, lpb, pattern=self)
+        self.midi_tracks = [MidiTrack(i, length, lpb, pattern=self) for i in range(constants.track_count)]
         self.loops = 1
         self.swing = swing
-        self.scale = "C#min"
+        self.scale = CHROMATIC
         self.tracks = [self.master_track] + self.midi_tracks
 
         # self.transposition = [0, 0, 0, 0, 0, 0, 0, 0]  # independent transposition per track

@@ -4,7 +4,7 @@ MIDI_START_SENT = 2
 MIDI_STOP_SENT = 3
 
 # game states #
-TRACKER_INITIALISED = 10
+RENDERER_INITIALISED = 10
 QUIT = 11
 
 # view states #

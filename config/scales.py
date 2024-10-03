@@ -23,12 +23,14 @@ FREYGISH = 20
 
 
 SCALES = {
+    PATTERN: {"name": "PATTERN",
+              "indices": None},
     CHROMATIC:
         {"name": "CHROMATIC",
          "indices": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]},
     MINOR:
         {"name": "MINOR",
-         "indices": [1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0]},
+         "indices": [1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0]},
     MAJOR:
         {"name": "MAJOR",
          "indices": [1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1]},
@@ -42,31 +44,31 @@ SCALES = {
         {"name": "LYDIAN",
          "indices": [1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1]},
     MIXOLYDIAN:
-        {"name": "MIXOLYDIAN",
+        {"name": "MIXOLYD.",
          "indices": [1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0]},
     LOCRIAN:
         {"name": "LOCRIAN",
          "indices": [1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0]},
     HARMONIC_MINOR:
-        {"name": "HARMONIC MINOR",
+        {"name": "HARM. MIN",
          "indices": [1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1]},
     MELODIC_MINOR:
-        {"name": "MELODIC MINOR",
+        {"name": "MEL. MIN",
          "indices": [1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1]},
     WHOLE_TONE:
-        {"name": "WHOLE TONE",
+        {"name": "WHOLE TN.",
          "indices": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]},
     DIMINISHED:
-        {"name": "DIMINISHED",
+        {"name": "DIMINISH.",
          "indices": [1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1]},
     AUGMENTED:
         {"name": "AUGMENTED",
          "indices": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]},
     MAJOR_PENTATONIC:
-        {"name": "MAJOR PENTATONIC",
+        {"name": "PENTA MAJ",
          "indices": [1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0]},
     MINOR_PENTATONIC:
-        {"name": "MINOR PENTATONIC",
+        {"name": "PENTA MIN",
          "indices": [1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0]},
     BLUES:
         {"name": "BLUES",

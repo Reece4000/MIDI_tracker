@@ -1,11 +1,10 @@
 
 src/tst.py
 To Do.txt
-main_stats
+main_stats*
 src/ui_components/__pycache__/pattern_view.cpython-39.pyc
 *.pyc
 src/ui_components/__pycache__/info_pane.cpython-39.pyc
 src/ui_components/__pycache__/editor_window.cpython-39.pyc
 src/__pycache__/tracks.cpython-39.pyc
 src/__pycache__/tracker.cpython-39.pyc
-main_stats

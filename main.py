@@ -30,7 +30,7 @@ class EventBus:
                 else:
                     handler(data)
 
-
+"""
 isWindows = True
 try:
     sys.getwindowsversion()
@@ -42,6 +42,7 @@ if not isWindows:
     p.nice(10)
 else:
     p.nice(psutil.REALTIME_PRIORITY_CLASS)
+"""
 
 def print_timings():
     print("\nAverage execution times per method:")

@@ -41,6 +41,10 @@ class Tracker:
     def __init__(self, event_bus):
         self.event_bus = event_bus
         self.event_bus.subscribe(events.QUIT, self.quit)
+        self.renderer = Renderer(self)
+        self.renderer.initialise()
+        self.input_handler = InputHandler(self)
+        self.midi_handler = MidiHandler()
         self.track_count = constants.track_count
         self.timeline_length = constants.timeline_length
         self.song_pool = [0] + [None for _ in range(self.timeline_length - 1)]
@@ -58,10 +62,7 @@ class Tracker:
         self.is_playing = False
         self.follow_playhead = False
 
-        self.renderer = Renderer(self)
-        self.renderer.initialise()
-        self.input_handler = InputHandler(self)
-        self.midi_handler = MidiHandler()
+
         self.clock = Clock(bpm=self.cursor_pattern.bpm, callback=self.tick)
         self._tick_mutex = Lock()
         self.ticks = 0
@@ -378,7 +379,7 @@ class Tracker:
             self.pages[self.page].handle_param_adjust(increment, axis)
         except TypeError:
             print("Error: handle_param_adjust method not implemented for current page", self.page,
-                  "Please implement this method in the current page class")
+                  "Please implement this method in the current page class", "Page = ", self.pages[self.page])
 
     def move_in_place(self, x, y):
         self.pages[self.page].move_in_place(x, y)

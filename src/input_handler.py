@@ -52,7 +52,7 @@ class InputHandler:
             pygame.K_6: 32, pygame.K_y: 33, pygame.K_7: 34, pygame.K_u: 35, pygame.K_a: -1
         }
 
-        self.tracker.event_bus.subscribe(events.TRACKER_INITIALISED, self.initialise)
+        self.tracker.event_bus.subscribe(events.RENDERER_INITIALISED, self.initialise)
 
     def initialise(self):
         pygame.key.set_repeat(180, 40)

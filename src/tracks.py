@@ -7,8 +7,10 @@ from src.utils import transpose_to_scale
 
 
 class Track:
-    def __init__(self, length: int, lpb: int, tracker) -> None:
-        self.tracker = tracker
+    def __init__(self, length: int, lpb: int, pattern) -> None:
+        self.pattern = pattern
+        self.midi_handler: MidiHandler = pattern.tracker.midi_handler
+        self.event_bus = pattern.tracker.event_bus
         self.is_master: bool = False
         self.length: int = length
         self.lpb: int = lpb
@@ -88,6 +90,12 @@ class Track:
             for i in range(new_length - self.length):
                 self.steps.append(MasterStep() if self.is_master else MidiStep())
 
+    def adjust_swing(self, increment: int) -> None:
+        current_swing: int = self.swing
+        new_swing: int = min(max(0, current_swing + increment), 24)
+        self.swing = new_swing
+        self.swing_factor = int((self.swing / self.lpb) * 4)
+
     def adjust_length(self, increment: int) -> None:
         current_len: int = self.length
         min_len: int = 1
@@ -123,13 +131,15 @@ class Track:
 
 
 class MidiTrack(Track):
-    def __init__(self, channel: int, length: int, lpb: int, tracker) -> None:
-        super().__init__(length, lpb, tracker)
+    def __init__(self, channel: int, length: int, lpb: int, pattern) -> None:
+        super().__init__(length, lpb, pattern)
         self.last_notes_played: list = [None, None, None, None]
         self.is_muted: bool = False
+        self.is_soloed: bool = False
         self.channel: int = channel
         self.is_reversed: bool = False
         self.steps: list = [MidiStep() for _ in range(length)]
+        self.transpose: int = 0
         self.scale = CHROMATIC
         # so we have 24 ticks per step at 4 lpb
         # lets set the swing in this way and then divide it as necessary when the lpb changes
@@ -145,9 +155,8 @@ class MidiTrack(Track):
 
     def handle_mute(self, send_note_offs: bool):
         self.is_muted = not self.is_muted
-        midi_handler = self.tracker.midi_handler
         if send_note_offs:
-            midi_handler.all_notes_off(self.channel)
+            self.midi_handler.all_notes_off(self.channel)
 
     def reverse(self) -> None:
         self.is_reversed = not self.is_reversed
@@ -187,38 +196,41 @@ class MidiTrack(Track):
         return on_next_step
 
     def handle_ccs(self, values: list[int]) -> None:
-        midi_handler = self.tracker.midi_handler
+        channel_ccs = self.pattern.tracker.channel_ccs[self.channel]
         for i, val in enumerate(values):
-            cc = self.tracker.channel_ccs[self.channel][i]
+            cc = channel_ccs[i]
             if val is None or cc is None:
                 continue
             try:
-                midi_handler.send_cc(self.channel, cc, val)
+                self.midi_handler.send_cc(self.channel, cc, val)
             except TypeError as e:
                 print(e, cc, val, self.channel)
 
     def handle_notes(self, notes: list[int], velocities: list[int]) -> None:
         note_played = False
-        midi_handler = self.tracker.midi_handler
-        if self.scale != PATTERN and self.scale != CHROMATIC:
-            notes = transpose_to_scale(notes, SCALES[self.scale["indices"]])
+        if self.scale == PATTERN:
+            pattern_scale = self.pattern.scale
+            if pattern_scale != CHROMATIC:
+                notes = transpose_to_scale(notes, SCALES[pattern_scale]["indices"])
+        elif self.scale != CHROMATIC:
+            notes = transpose_to_scale(notes, SCALES[self.scale]["indices"])
 
         for i in range(constants.max_polyphony):
             note, vel = notes[i], velocities[i]
             if note is not None:
-                last_played = midi_handler.last_notes_played[self.channel][i]
+                last_played = self.midi_handler.last_notes_played[self.channel][i]
                 if last_played is not None:
-                    midi_handler.note_off(self.channel, last_played, i)
+                    self.midi_handler.note_off(self.channel, last_played, i)
 
                 if note != -1:  # not a note off message
                     note_played = True
-                    while note in midi_handler.last_notes_played[self.channel]:
-                        index = midi_handler.last_notes_played[self.channel].index(note)
-                        midi_handler.note_off(self.channel, note, index)
+                    while note in self.midi_handler.last_notes_played[self.channel]:
+                        index = self.midi_handler.last_notes_played[self.channel].index(note)
+                        self.midi_handler.note_off(self.channel, note, index)
 
-                    midi_handler.note_on(self.channel, note, vel, i)
+                    self.midi_handler.note_on(self.channel, note, vel, i)
         if note_played:
-            self.tracker.event_bus.publish(events.NOTE_PLAYED, self.channel)
+            self.event_bus.publish(events.NOTE_PLAYED, self.channel)
 
     def play_step(self, step_pos: int = -1) -> None:
         if step_pos == -1:
@@ -243,8 +255,8 @@ class MidiTrack(Track):
 
 
 class MasterTrack(Track):
-    def __init__(self, length: int, lpb: int, tracker) -> None:
-        super().__init__(length, lpb, tracker)
+    def __init__(self, length: int, lpb: int, pattern) -> None:
+        super().__init__(length, lpb, pattern)
         self.is_master: bool = True
         self.steps: list = [MasterStep() for _ in range(length)]
 

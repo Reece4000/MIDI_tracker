@@ -1,4 +1,4 @@
-from config import constants
+from config import constants, themeing
 from src.utils import midi_to_note, chord_id, join_notes, timing_decorator
 
 
@@ -137,13 +137,13 @@ class MidiStep(Step):
             note_display = midi_to_note(notes[0])
             vel_display = vels[0]
         else:
-            self.cached_display_text = [(f'{self.get_chord_name(self.notes)}', (100, 255, 100))]
+            self.cached_display_text = [(f'{self.get_chord_name(self.notes)}', themeing.NOTE_COLOR)]
             return self.cached_display_text
 
-        note_color = (255, 100, 50) if note_display == "OFF" else (100, 255, 100)
+        note_color = themeing.NOTE_OFF_COLOR if note_display == "OFF" else themeing.NOTE_COLOR
         self.cached_display_text = [(f'{note_display}', note_color),
-                                    (f'{vel_display: >3}', (255, 150, 150)),
-                                    (f'{mod_display}', (150, 210, 255))]
+                                    (f'{vel_display: >3}', themeing.VELOCITY_COLOR),
+                                    (f'{mod_display}', themeing.STEP_MOD_COLOR)]
 
         return self.cached_display_text
 
