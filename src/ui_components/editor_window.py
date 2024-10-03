@@ -1,6 +1,6 @@
 from src.ui_components.view_component import ViewComponent
-from src.gui_elements import KeyHints, TextBox, Button
-from config import constants, display, themeing, events
+from src.ui_components.gui_elements import KeyHints
+from config import display, themeing, events
 from config.render_map import *
 from config.pages import *
 from src.utils import midi_to_note
@@ -24,7 +24,8 @@ class MenuPage:
         self.name = name
         self.y_offset = 0
         self.h_offset = 0
-        self.force_update = True
+        self.to_render = {}
+        self.previous_render = {}
 
     def update_view(self, tracker, is_active):
         pass
@@ -58,7 +59,7 @@ class StepPage(MenuPage):
     def __init__(self, x, y, tracker):
         super().__init__(x, y, "STEP", tracker)
         self.clipboard = {"note": None, "component": None, "value": None}
-        self.image = self.tracker.renderer.step_page
+        self.image = self.tracker.renderer.load_image(r"resources\editor_panes\step_page.png")
         self.bg = themeing.BG_TASKPANE
         self.title = f"{self.name} 0"
         self.cursor_x = 0
@@ -71,13 +72,6 @@ class StepPage(MenuPage):
         self.component_p2_color = (190, 50, 190)
         self.cc_control_color = (255, 210, 80)
         self.cc_value_color = (70, 200, 180)
-        self.notes = [None] * 4
-        self.velocities = [None] * 4
-        self.components = [None] * 4
-        self.component_p1 = [None] * 4
-        self.component_p2 = [None] * 4
-        self.cc_controls = [None] * 16
-        self.cc_values = [None] * 16
 
         self.note_x = self.x + 72
         self.note_w = 50
@@ -101,14 +95,22 @@ class StepPage(MenuPage):
         self.cc_val_w = 42
         self.cc_y = [307, 329, 351, 373, 401, 422, 444, 467]
 
+    def check_redraw(self, render_queue):
+        for key, items in self.to_render.items():
+            if key in self.previous_render:
+                if items != self.previous_render[key]:
+                    for item in items:
+                        render_queue.appendleft(item)
+            else:
+                for item in items:
+                    render_queue.appendleft(item)
+
+        self.previous_render = self.to_render
+        self.to_render = {k: [] for k in self.to_render.keys()}
+
     def move_cursor(self, x, y):
         def get_max_x(curs_y):
-            if curs_y > 7:
-                return 3
-            elif curs_y > 3:
-                return 2
-            else:
-                return 1
+            return 3 if curs_y > 7 else 2 if curs_y > 3 else 1
 
         if x != 0:
             self.cursor_x = max(min(get_max_x(self.cursor_y), self.cursor_x + x), 0)
@@ -236,78 +238,76 @@ class StepPage(MenuPage):
                 self.tracker.last_cc_val = step.update_cc(cc_index, new_cc_val)
             else:
                 step.update_cc(cc_index, self.tracker.last_cc_val)
-            self.tracker.midi_handler.send_cc(sel_track_index, cc_index+1, self.tracker.last_cc_val)
+            self.tracker.midi_handler.send_cc(sel_track_index, cc_index + 1, self.tracker.last_cc_val)
 
         if preview:
             self.tracker.preview_step(notes_only=True)
 
-    def draw_notes(self, step, sel_table, is_active, render_queue):
-        for i, note in enumerate(self.notes):
-            note_text = midi_to_note(step.notes[i]) if step.notes[i] is not None else "---"
-            self.notes[i] = note_text
+    def draw_notes(self, step, sel_table, is_active):
+        for i, note in enumerate(step.notes):
+
+            note_text = midi_to_note(note) if note is not None else "---"
+
             if sel_table == 0 and self.cursor_y == i and self.cursor_x == 0:
                 text_col = themeing.BLACK
                 bg_col = themeing.CURSOR_COLOR if is_active else themeing.CURSOR_COLOR_ALT
             else:
                 bg_col, text_col = self.bg, self.note_color
-            render_queue.appendleft([RECT, bg_col, self.note_x - 3, self.notes_y[i], self.note_w, self.cell_h, 0])
-            render_queue.appendleft([TEXT, "textbox_font", text_col, note_text, self.note_x + 11, self.notes_y[i], 0])
 
-            vel_text = f'{step.velocities[i]:0>2}' if step.velocities[i] is not None else "--"
-            self.velocities[i] = vel_text
+            self.to_render[(i, 0)] = [[RECT, bg_col, self.note_x - 3, self.notes_y[i], self.note_w, self.cell_h, 0],
+                                      [TEXT, "textbox_font", text_col, note_text, self.note_x + 11, self.notes_y[i], 0]]
+
+            vel_text = f'{step.velocities[i]: >3}' if step.velocities[i] is not None else "---"
+
             if sel_table == 0 and self.cursor_y == i and self.cursor_x == 1:
                 text_col = themeing.BLACK
                 bg_col = themeing.CURSOR_COLOR if is_active else themeing.CURSOR_COLOR_ALT
             else:
                 bg_col, text_col = self.bg, self.velocity_color
-            render_queue.appendleft([RECT, bg_col, self.vel_x, self.notes_y[i], self.vel_w, self.cell_h, 0])
-            render_queue.appendleft([TEXT, "textbox_font", text_col, vel_text, self.vel_x + 12, self.notes_y[i], 0])
 
-    def draw_components(self, step, sel_table, is_active, render_queue):
-        for i, component in enumerate(self.components):
-            step_component = step.components[i]
-            if step_component is None:
-                component_text = "---"
+            self.to_render[(i, 1)] = [[RECT, bg_col, self.vel_x, self.notes_y[i], self.vel_w, self.cell_h, 0],
+                                      [TEXT, "textbox_font", text_col, vel_text, self.vel_x + 9, self.notes_y[i], 0]]
+
+    def draw_components(self, step, sel_table, is_active):
+        for i, component in enumerate(step.components):
+            if component is None:
+                component_text = component_p1_text = component_p2_text = "---"
             else:
-                component_text = f"{step_component[i][0]}"
-            self.components[i] = component_text
+                component_text = f"{component[i][0]}"
+                component_p1_text = f"{component[i][1]}"
+                component_p2_text = f"{component[i][2]}"
+
             if sel_table == 1 and self.cursor_y == i + 4 and self.cursor_x == 0:
                 text_col = themeing.BLACK
                 bg_col = themeing.CURSOR_COLOR if is_active else themeing.CURSOR_COLOR_ALT
             else:
                 bg_col, text_col = self.bg, self.components_color
-            render_queue.appendleft([RECT, bg_col, self.components_x - 3, self.components_y[i], 52, 16, 0])
-            render_queue.appendleft([TEXT, "textbox_font", text_col, component_text, self.components_x + 11, self.components_y[i], 0])
 
-            if step_component is None:
-                component_p1_text = "--"
-            else:
-                component_p1_text = f"{step_component[i][1]}"
-            self.component_p1[i] = component_p1_text
+            self.to_render[(i + 4, 0)] = [[RECT, bg_col, self.components_x - 3, self.components_y[i], 52, 16, 0],
+                                          [TEXT, "textbox_font", text_col, component_text,
+                                           self.components_x + 11, self.components_y[i], 0]]
+
             if sel_table == 1 and self.cursor_y == i + 4 and self.cursor_x == 1:
                 text_col = themeing.BLACK
                 bg_col = themeing.CURSOR_COLOR if is_active else themeing.CURSOR_COLOR_ALT
             else:
                 bg_col, text_col = self.bg, self.component_p1_color
-            render_queue.appendleft([RECT, bg_col, self.components_p1_x - 3, self.components_y[i], 42, 16, 0])
-            render_queue.appendleft([TEXT, "textbox_font", text_col, component_p1_text,
-                                     self.components_p1_x + 11, self.components_y[i], 0])
 
-            if step_component is None:
-                component_p2_text = "--"
-            else:
-                component_p2_text = f"{step_component[i][2]}"
-            self.component_p2[i] = component_p2_text
+            self.to_render[(i + 4, 1)] = [[RECT, bg_col, self.components_p1_x - 3, self.components_y[i], 42, 16, 0],
+                                          [TEXT, "textbox_font", text_col, component_p1_text,
+                                           self.components_p1_x + 6, self.components_y[i], 0]]
+
             if sel_table == 1 and self.cursor_y == i + 4 and self.cursor_x == 2:
                 text_col = themeing.BLACK
                 bg_col = themeing.CURSOR_COLOR if is_active else themeing.CURSOR_COLOR_ALT
             else:
                 bg_col, text_col = self.bg, self.component_p2_color
-            render_queue.appendleft([RECT, bg_col, self.components_p2_x - 3, self.components_y[i], 42, 16, 0])
-            render_queue.appendleft([TEXT, "textbox_font", text_col, component_p2_text,
-                                     self.components_p2_x + 11, self.components_y[i], 0])
 
-    def draw_ccs(self, step, sel_table, is_active, channel_ccs, render_queue):
+            self.to_render[(i + 4, 2)] = [[RECT, bg_col, self.components_p2_x - 3, self.components_y[i], 42, 16, 0],
+                                          [TEXT, "textbox_font", text_col, component_p2_text,
+                                           self.components_p2_x + 6, self.components_y[i], 0]]
+
+    def draw_ccs(self, step, sel_table, is_active, channel_ccs):
         def get_colors(sel_table, is_active, i, x, is_control=True):
             if sel_table == 2 and self.cursor_y == i and self.cursor_x == x:
                 text_col = themeing.BLACK
@@ -318,38 +318,33 @@ class StepPage(MenuPage):
 
         for i in range(8):
             cc_control_text_left = f"{channel_ccs[i]:0>3}" if channel_ccs is not None else "---"
-            cc_control_text_right = f"{channel_ccs[i + 8]:0>3}" if channel_ccs is not None else "---"
             cc_value_text_left = f"{step.ccs[i]:0>3}" if step.ccs[i] is not None else "---"
+            cc_control_text_right = f"{channel_ccs[i + 8]:0>3}" if channel_ccs is not None else "---"
             cc_value_text_right = f"{step.ccs[i + 8]:0>3}" if step.ccs[i + 8] is not None else "---"
 
-            self.cc_controls[i] = cc_control_text_left
-            self.cc_controls[i + 8] = cc_control_text_right
-            self.cc_values[i] = cc_value_text_left
-            self.cc_values[i + 8] = cc_value_text_right
+            text_col, bg_col = get_colors(sel_table, is_active, i + 8, 0)
+            self.to_render[(i + 8, 0)] = [[RECT, bg_col, self.cc_control_x1 - 3, self.cc_y[i],
+                                           self.cc_control_w, self.cell_h, 0],
+                                          [TEXT, "textbox_font", text_col, cc_control_text_left,
+                                           self.cc_control_x1 + 11, self.cc_y[i], 0]]
 
-            text_col, bg_col = get_colors(sel_table, is_active, i+8, 0)
-            render_queue.appendleft([RECT, bg_col, self.cc_control_x1 - 3, self.cc_y[i],
-                                     self.cc_control_w, self.cell_h, 0])
-            render_queue.appendleft([TEXT, "textbox_font", text_col, cc_control_text_left,
-                                     self.cc_control_x1 + 11, self.cc_y[i], 0])
+            text_col, bg_col = get_colors(sel_table, is_active, i + 8, 1, is_control=False)
+            self.to_render[(i + 8, 1)] = [[RECT, bg_col, self.cc_val_x1 - 3, self.cc_y[i],
+                                           self.cc_val_w, self.cell_h, 0],
+                                          [TEXT, "textbox_font", text_col, cc_value_text_left,
+                                           self.cc_val_x1 + 6, self.cc_y[i], 0]]
 
-            text_col, bg_col = get_colors(sel_table, is_active, i+8, 1, is_control=False)
-            render_queue.appendleft([RECT, bg_col, self.cc_val_x1 - 3, self.cc_y[i],
-                                     self.cc_val_w, self.cell_h, 0])
-            render_queue.appendleft([TEXT, "textbox_font", text_col, cc_value_text_left,
-                                     self.cc_val_x1 + 6, self.cc_y[i], 0])
+            text_col, bg_col = get_colors(sel_table, is_active, i + 8, 2)
+            self.to_render[(i + 8, 2)] = [[RECT, bg_col, self.cc_control_x2 - 3, self.cc_y[i],
+                                           self.cc_control_w, self.cell_h, 0],
+                                          [TEXT, "textbox_font", text_col, cc_control_text_right,
+                                           self.cc_control_x2 + 11, self.cc_y[i], 0]]
 
-            text_col, bg_col = get_colors(sel_table, is_active, i+8, 2)
-            render_queue.appendleft([RECT, bg_col, self.cc_control_x2 - 3, self.cc_y[i],
-                                     self.cc_control_w, self.cell_h, 0])
-            render_queue.appendleft([TEXT, "textbox_font", text_col, cc_control_text_right,
-                                     self.cc_control_x2 + 11, self.cc_y[i], 0])
-
-            text_col, bg_col = get_colors(sel_table, is_active, i+8, 3, is_control=False)
-            render_queue.appendleft([RECT, bg_col, self.cc_val_x2 - 3, self.cc_y[i],
-                                     self.cc_val_w, self.cell_h, 0])
-            render_queue.appendleft([TEXT, "textbox_font", text_col, cc_value_text_right,
-                                     self.cc_val_x2 + 6, self.cc_y[i], 0])
+            text_col, bg_col = get_colors(sel_table, is_active, i + 8, 3, is_control=False)
+            self.to_render[(i + 8, 3)] = [[RECT, bg_col, self.cc_val_x2 - 3, self.cc_y[i],
+                                           self.cc_val_w, self.cell_h, 0],
+                                          [TEXT, "textbox_font", text_col, cc_value_text_right,
+                                           self.cc_val_x2 + 6, self.cc_y[i], 0]]
 
     def update_view(self, tracker, is_active):
         step = tracker.get_selected_step()
@@ -360,29 +355,34 @@ class StepPage(MenuPage):
         step_index = tracker.pages[PATTERN].cursor_y
         self.title = f"{self.name} {step_index}"
         if is_active:
-            tracker.renderer.render_queue.appendleft([RECT, themeing.CURSOR_COLOR, self.x, self.y_actual,
-                                                      self.w, self.h_actual, 2])
+            title_color = themeing.CURSOR_COLOR
+            self.to_render[0] = [[RECT, themeing.CURSOR_COLOR, self.x,
+                                  self.y_actual, self.w, self.h_actual, 2]]
         else:
-            tracker.renderer.render_queue.appendleft([RECT, themeing.BG_TASKPANE_HL, self.x, self.y_actual,
-                                                      self.w, self.h_actual, 2])
+            title_color = themeing.WHITE
+            self.to_render[0] = [[RECT, themeing.BG_TASKPANE_HL, self.x,
+                                  self.y_actual, self.w, self.h_actual, 2]]
 
-        tracker.renderer.render_queue.appendleft([RECT, themeing.BG_TASKPANE_HL, self.x+2, self.y_actual+2, self.w-4, self.h_closed-4, 0])
-        tracker.renderer.render_queue.appendleft([TEXT, "tracker_font", themeing.WHITE, self.title,
-                                                  self.x + 6, self.y_actual + 8, 0])
+        self.to_render[1] = [[RECT, themeing.BG_TASKPANE, self.x + 2,
+                              self.y_actual + 2, self.w - 4, self.h_closed - 4, 0],
+                             [TEXT, "tracker_font", title_color, self.title,
+                              self.x + 6, self.y_actual + 8, 0]]
 
         sel_table = 2 if self.cursor_y > 7 else 1 if self.cursor_y > 3 else 0
-        self.draw_notes(step, sel_table, is_active, tracker.renderer.render_queue)
-        self.draw_components(step, sel_table, is_active, tracker.renderer.render_queue)
+        self.draw_notes(step, sel_table, is_active)
+        self.draw_components(step, sel_table, is_active)
+
         curr_track = tracker.get_selected_track()
         channel_ccs = tracker.channel_ccs[curr_track.channel] if curr_track is not None else None
-        self.draw_ccs(step, sel_table, is_active, channel_ccs, tracker.renderer.render_queue)
+        self.draw_ccs(step, sel_table, is_active, channel_ccs)
 
-        self.force_update = False
+        self.check_redraw(tracker.renderer.render_queue)
+
 
 class TrackPage(MenuPage):
     def __init__(self, x, y, tracker):
         super().__init__(x, y, "TRACK", tracker)
-        self.image = self.tracker.renderer.track_page
+        self.image = self.image = self.tracker.renderer.load_image(r"resources\editor_panes\track_page.png")
         self.cursor_x = 0
         self.cursor_y = 0
 
@@ -390,7 +390,7 @@ class TrackPage(MenuPage):
 class PatternPage(MenuPage):
     def __init__(self, x, y, tracker):
         super().__init__(x, y, "PATTERN", tracker)
-        self.image = self.tracker.renderer.pattern_page
+        self.image = self.image = self.tracker.renderer.load_image(r"resources\editor_panes\pattern_page.png")
         self.cursor_x = 0
         self.cursor_y = 0
 
@@ -398,7 +398,7 @@ class PatternPage(MenuPage):
 class PhrasePage(MenuPage):
     def __init__(self, x, y, tracker):
         super().__init__(x, y, "PHRASE", tracker)
-        self.image = self.tracker.renderer.phrase_page
+        self.image = self.image = self.tracker.renderer.load_image(r"resources\editor_panes\phrase_page.png")
         self.cursor_x = 0
         self.cursor_y = 0
 
@@ -407,7 +407,7 @@ class EditorWindow(ViewComponent):
     def __init__(self, tracker):
         super().__init__(tracker)
         self.previous_page = PATTERN
-        self.x_pos = display.editor_window_x # 966
+        self.x_pos = display.editor_window_x  # 966
 
         self.y_pos = 2
         self.title_h = 28
@@ -424,6 +424,7 @@ class EditorWindow(ViewComponent):
                       PhrasePage(self.x_pos, page_h_closed * 3, self.tracker)]
         self.pages[self.curr_page].active = 1
         self.open_page(self.curr_page)
+        self.key_hints = KeyHints()
 
     def open_page(self, page_index, increment=None):
         if increment is not None:
@@ -446,7 +447,6 @@ class EditorWindow(ViewComponent):
         self.curr_page = page_index
         self.update_page_view()
         self.pages[self.curr_page].update_view(self.tracker, self.active)
-        self.key_hints = KeyHints()
 
     def update_page_view(self):
         render_queue = self.tracker.renderer.render_queue
@@ -463,9 +463,6 @@ class EditorWindow(ViewComponent):
 
             render_queue.appendleft([RECT, outline, page.x, page.y_actual, page.w, page.h_actual, 2])
             render_queue.appendleft([TEXT, "tracker_font", txt_col, page.name, page.x + 6, page.y_actual + 8, 0])
-
-
-
 
     def handle_select(self):
         self.pages[self.curr_page].handle_select()

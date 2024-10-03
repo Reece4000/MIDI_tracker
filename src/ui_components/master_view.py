@@ -1,6 +1,6 @@
 from config import display, events
-from config.constants import FOLLOW_MASTER, FOLLOW_PATTERN
-from src.gui_elements import PatternCell, TrackBox
+from config.constants import FOLLOW_PATTERN
+from src.ui_components.gui_elements import PatternCell, TrackBox
 from src.ui_components.view_component import ViewComponent
 from src.ui_components.pattern_view import get_pattern_index
 

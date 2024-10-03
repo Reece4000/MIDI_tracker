@@ -262,15 +262,10 @@ class PatternCell(UiComponent):
         self.y_screen = display.menu_height + (y * display.row_h)
         self.w = display.col_w
         self.h = display.row_h - 1
-        self.highlight_map = {"row selected in focus": (30, 30, 30),
-                              "track selected in focus": (12, 12, 6),
-                              "row selected not focused": (0, 12, 30),
-                              "track selected not focused": (0, 6, 8)}
 
         # components, line_bg_color, playhead_pos, cursor_arrows_color
         # top left cursor, top right, bottom left, bottom right
-        self.state = [[], None, None, False,
-                      None, False, False, False]
+        self.state = [[], None, None, False, None, False, False, False]
 
     def check_for_state_change(self, pattern, step_index, track, track_index, playhead_step, render_queue):
 
@@ -345,22 +340,21 @@ class PatternCell(UiComponent):
         return step_state
 
     def add_highlight(self, line_bg_color, track_index, step_index):
-        def get_color(option):
+        def get_color(hl):
             r, g, b = line_bg_color
-            hl = self.highlight_map[option]
             new_color = (r + hl[0], g + hl[1], b + hl[2])
             return new_color
 
         if self.parent.active:
             if track_index in self.parent.selected_tracks:
-                line_bg_color = get_color("track selected in focus")
+                line_bg_color = get_color(themeing.TRACK_SEL_FOCUSED)
                 if step_index in self.parent.selected_rows:
-                    line_bg_color = get_color("row selected in focus")
+                    line_bg_color = get_color(themeing.ROW_SEL_FOCUSED)
         else:
             if track_index in self.parent.selected_tracks:
-                line_bg_color = get_color("track selected not focused")
+                line_bg_color = get_color(themeing.TRACK_SEL_UNFOCUSED)
                 if step_index in self.parent.selected_rows:
-                    line_bg_color = get_color("row selected not focused")
+                    line_bg_color = get_color(themeing.ROW_SEL_UNFOCUSED)
 
         return line_bg_color
 

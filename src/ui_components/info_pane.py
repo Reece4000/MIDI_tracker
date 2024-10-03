@@ -1,5 +1,5 @@
-from config import constants, display, themeing
-from src.gui_elements import PatternInfoText, PlayPause, Button
+from config import display, themeing
+from src.ui_components.gui_elements import PatternInfoText, PlayPause, Button
 
 
 class InfoPane:

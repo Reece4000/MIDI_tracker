@@ -1,4 +1,4 @@
-from config import events
+from config import events, constants
 from config.scales import *
 from typing import Union
 from src.steps import Step, MidiStep, MasterStep
@@ -200,12 +200,12 @@ class MidiTrack(Track):
     def handle_notes(self, notes: list[int], velocities: list[int]) -> None:
         note_played = False
         midi_handler = self.tracker.midi_handler
-        if self.scale != CHROMATIC:
+        if self.scale != PATTERN and self.scale != CHROMATIC:
             notes = transpose_to_scale(notes, SCALES[self.scale["indices"]])
 
-        for i, note in enumerate(notes):
+        for i in range(constants.max_polyphony):
+            note, vel = notes[i], velocities[i]
             if note is not None:
-                vel = velocities[i]
                 last_played = midi_handler.last_notes_played[self.channel][i]
                 if last_played is not None:
                     midi_handler.note_off(self.channel, last_played, i)

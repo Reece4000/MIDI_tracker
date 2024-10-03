@@ -1,10 +1,9 @@
 from config import constants, display, themeing, events
 from config.render_map import *
 from config.pages import *
-from config.constants import max_patterns
 
 from src.ui_components.view_component import ViewComponent
-from src.gui_elements import TimelineCell, TimelineArrow
+from src.ui_components.gui_elements import TimelineCell, TimelineArrow
 
 
 class TimelineTrack(ViewComponent):

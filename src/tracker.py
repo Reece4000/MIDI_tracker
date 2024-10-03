@@ -1,29 +1,23 @@
+import pygame
 from threading import Lock
-import time
-import json
 from time import perf_counter
-import timeit
 
-from config import constants, display, themeing, events
 from config.pages import *
-from config.constants import page_map as pmap
+from config import constants, display, events
 from src.utils import timing_decorator, calculate_timeline_increment
 
 from src.input_handler import InputHandler
 from src.midi_handler import MidiHandler
-from src.sequencer import Clock
+from src.clock import Clock
 from src.renderer import Renderer
 from src.pattern import Pattern
-
 from src.ui_components.info_pane import InfoPane
 from src.ui_components.pattern_view import PatternEditor
 from src.ui_components.master_view import MasterTrack
 from src.ui_components.editor_window import EditorWindow
 from src.ui_components.timeline_tracks import SongTrack, PhraseTrack
+from src.ui_components.gui_elements import RowNumberCell
 
-from src.gui_elements import RowNumberCell
-
-import pygame
 
 
 # going for component based architecture with elements of MVC
@@ -94,7 +88,7 @@ class Tracker:
         self.is_playing = False
         self.running = False
 
-        row_number_cells = [RowNumberCell(y) for y in range(display.visible_rows)] # shared between pattern and master
+        row_number_cells = [RowNumberCell(y) for y in range(display.visible_rows)]  # shared between pattern and master
         self.info_pane = InfoPane(self)
 
         self.pages[SONG] = SongTrack(self)
@@ -177,8 +171,8 @@ class Tracker:
         self.ticks = 0
         self.midi_handler.all_notes_off()
         self.midi_handler.send_midi_stop()
-        self.pages[pmap["song"]].flag_state_change()
-        self.pages[pmap["phrase"]].flag_state_change()
+        self.pages[SONG].flag_state_change()
+        self.pages[PHRASE].flag_state_change()
 
     def start_playback(self):
         print('\n########### Starting playback ###########\n')
@@ -189,8 +183,8 @@ class Tracker:
         self.reset_track_playheads()
         self.midi_handler.send_midi_start()
         self.is_playing = True
-        self.pages[pmap["song"]].flag_state_change()
-        self.pages[pmap["phrase"]].flag_state_change()
+        self.pages[SONG].flag_state_change()
+        self.pages[PHRASE].flag_state_change()
 
     def process_master_components(self):
         master_components = self.playing_pattern.master_track.get_components()
@@ -234,8 +228,8 @@ class Tracker:
         if self.playing_pattern.master_track.tick():
             chk_components = True
             if self.playing_pattern.master_track.ticks == 0:
-                self.pages[pmap["song"]].flag_state_change()
-                self.pages[pmap["phrase"]].flag_state_change()
+                self.pages[SONG].flag_state_change()
+                self.pages[PHRASE].flag_state_change()
                 self.update_phrase_playhead()
                 self.update_pattern_parameters()
                 self.reset_track_playheads()
@@ -269,8 +263,8 @@ class Tracker:
         self.event_bus.publish(events.TIMELINE_STATE_CHANGED)
 
     def is_cursor_on_playing_pattern(self):
-        song_y = self.pages[pmap["song"]].cursor_y
-        phrase_y = self.pages[pmap["phrase"]].cursor_y
+        song_y = self.pages[SONG].cursor_y
+        phrase_y = self.pages[PHRASE].cursor_y
         cursor_pattern_num = self.phrase_pool[self.song_pool[song_y]][phrase_y]
         if cursor_pattern_num is None:
             return False
@@ -290,8 +284,8 @@ class Tracker:
             self.phrase_pool[phrase_num] = [None for _ in range(1000)]
 
     def get_next_pattern(self):
-        song_y = self.pages[pmap["song"]].cursor_y
-        phrase_y = self.pages[pmap["phrase"]].cursor_y
+        song_y = self.pages[SONG].cursor_y
+        phrase_y = self.pages[PHRASE].cursor_y
         cursor_pattern_num = self.phrase_pool[self.song_pool[song_y]][phrase_y]
         if cursor_pattern_num is None:
             return None
@@ -319,8 +313,8 @@ class Tracker:
             self.cursor_pattern = self.pattern_pool[pattern_num]
 
     def set_playing_pattern_to_cursor(self):
-        song_y = self.pages[pmap["song"]].cursor_y
-        phrase_y = self.pages[pmap["phrase"]].cursor_y
+        song_y = self.pages[SONG].cursor_y
+        phrase_y = self.pages[PHRASE].cursor_y
         cursor_pattern_num = self.phrase_pool[self.song_pool[song_y]][phrase_y]
         if cursor_pattern_num is not None and not self.is_cursor_on_playing_pattern():
             self.song_playhead = song_y
@@ -370,12 +364,6 @@ class Tracker:
         except IndexError:
             return None
 
-    def toggle_editor_window(self):
-        if self.pages[EDITOR].active:
-            self.deactivate_editor_window()
-        else:
-            self.activate_editor_window()
-
     def handle_select(self):
         self.pages[self.page].handle_select()
 
@@ -407,21 +395,16 @@ class Tracker:
     def handle_duplicate(self):
         self.pages[self.page].handle_duplicate()
 
-    def activate_editor_window(self):
-        editor_window_page = EDITOR
-        if self.pages[editor_window_page].active:
-            return
-
-        self.pages[editor_window_page].previous_page = self.page
-        self.page_switch(direction=None, page_num=editor_window_page)
-
-    def deactivate_editor_window(self):
-        if not self.pages[EDITOR].active:
-            return
-
-        prev_page = self.pages[EDITOR].previous_page
-        if prev_page is not None:
-            self.page_switch(direction=None, page_num=prev_page)
+    def toggle_editor_window(self):
+        if self.pages[EDITOR].active:
+            prev_page = self.pages[EDITOR].previous_page
+            if prev_page is None:
+                self.page_switch(direction=None, page_num=PATTERN)
+            else:
+                self.page_switch(direction=None, page_num=prev_page)
+        else:
+            self.pages[EDITOR].previous_page = self.page
+            self.page_switch(direction=None, page_num=EDITOR)
 
     def page_switch(self, direction, page_num=None):
         if page_num is None:
@@ -436,8 +419,6 @@ class Tracker:
                 continue
             if (i != self.page and view.active) or (i == self.page and not view.active):
                 view.toggle_active()
-
-
 
     def handle_events(self):
         input_return = self.input_handler.check_for_events(current_time=perf_counter())
@@ -499,7 +480,8 @@ class Tracker:
 
         note = data if data == -1 else data + (self.octave_mod * 12)
         if self.page == EDITOR:
-            self.add_note(step, self.pages[EDITOR].cursor_y, note)
+            print("adding")
+            step.add_note(step, self.pages[EDITOR].cursor_y, note)
         else:
             self.pages[EDITOR].state_changed = True
             for pos in range(4):
@@ -542,7 +524,7 @@ class Tracker:
     # then we want to update the current pattern to the new pattern number
     
     def insert_pattern(self):
-        phrase_cursor = self.pages[pmap["phrase"]].cursor_y
+        phrase_cursor = self.pages[PHRASE].cursor_y
         if phrase_cursor + 1 >= self.timeline_length:
             return
 
@@ -552,12 +534,12 @@ class Tracker:
                 while self.cursor_phrase[phrase_cursor] is not None:
                     phrase_cursor += 1
                 self.update_phrase_step(phrase_cursor, i + 1)
-                self.pages[pmap["phrase"]].cursor_y = phrase_cursor
+                self.pages[PHRASE].cursor_y = phrase_cursor
                 break
     
     def insert_phrase(self):
-        song_cursor = self.pages[pmap["song"]].cursor_y
-        phrase_cursor = self.pages[pmap["phrase"]].cursor_y
+        song_cursor = self.pages[SONG].cursor_y
+        phrase_cursor = self.pages[PHRASE].cursor_y
         
         if song_cursor + 1 >= self.timeline_length:
                 return

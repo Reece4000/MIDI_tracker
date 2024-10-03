@@ -1,9 +1,8 @@
 from config.pages import *
-from config import constants, display, events, render_map, themeing
+from config import constants, display, events
 from config.constants import FOLLOW_MASTER, FOLLOW_PATTERN
-from src.gui_elements import PatternCell, TrackBox
+from src.ui_components.gui_elements import PatternCell, TrackBox
 from src.ui_components.view_component import ViewComponent
-from src.utils import timing_decorator
 
 
 def get_pattern_index(y_screen, y_pattern):
@@ -31,6 +30,13 @@ class PatternEditor(ViewComponent):
         self.tracker.event_bus.subscribe(events.NOTE_PLAYED, self.note_played)
         self.tracker.event_bus.subscribe(events.PATTERN_TRACK_STATE_CHANGED, self.flag_track_state_change)
         self.tracker.event_bus.subscribe(events.ALL_STATES_CHANGED, self.flag_state_change)
+
+    def toggle_active(self):
+        super().toggle_active()
+        self.selected_tracks = self.get_selected_tracks()
+        for i in range(8):
+            if i not in self.selected_tracks:
+                self.state_changed[i] = 0
 
     def note_played(self, track_index):
         self.track_boxes[track_index].highlight = 255
@@ -146,6 +152,8 @@ class PatternEditor(ViewComponent):
             self.tracker.preview_step()
         if n is not None and n != -1:
             self.tracker.last_note = n
+
+        self.tracker.event_bus.publish(events.EDITOR_WINDOW_STATE_CHANGED)
 
     def move_in_place(self, x, y):
         xpos, ypos, w, h = self.get_selection_coords()
@@ -437,6 +445,3 @@ class PatternEditor(ViewComponent):
             track_box.check_for_state_change(index, self.tracker.page, pattern, self.selected_tracks, render_queue)
 
         self.state_changed = [0] * 8
-
-
-

@@ -2,7 +2,6 @@ import sys
 import os 
 import tracemalloc
 from src import utils
-from src.state_manager import StateManager
 from src.tracker import Tracker
 import cProfile
 import traceback

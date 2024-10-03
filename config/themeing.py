@@ -55,3 +55,10 @@ info_items_colors = [
 ]
 
 midi_step_fonts = ["tracker_font", "tracker_font", "tracker_font_bold"]
+
+
+# cell highlight offsets for selected rows/tracks
+ROW_SEL_FOCUSED = (30, 30, 30)
+TRACK_SEL_FOCUSED = (12, 12, 6)
+ROW_SEL_UNFOCUSED = (0, 12, 30)
+TRACK_SEL_UNFOCUSED = (0, 6, 8)
