@@ -3,7 +3,7 @@ from config.scales import *
 from typing import Union
 from src.steps import Step, MidiStep, MasterStep
 from src.midi_handler import MidiHandler
-from src.utils import transpose_to_scale
+from src.utils import transpose_to_scale, get_increment
 
 
 class Track:
@@ -18,9 +18,18 @@ class Track:
         self.ticks: int = 0
         self.ticks_per_step: int = 96 // lpb
         self.steps: list = [Step() for _ in range(length)]
-        self.swing: int = 12
-        self.swing_factor: int = int((self.swing / self.lpb) * 4)
+        self.swing: int = -1
+        self.swing_factor = int((self.pattern.swing / self.lpb) * 4)
         self.step_pos = self.get_step_pos()
+
+    def reset(self) -> None:
+        self.ticks = 0
+
+    def adjust_channel(self, increment: int) -> None:
+        pass
+
+    def adjust_scale(self, increment: int) -> None:
+        pass
 
     def update_properties(self, length: int, lpb: int) -> None:
         pos: float = self.ticks / self.ticks_per_step
@@ -29,13 +38,13 @@ class Track:
         self.length_in_ticks = (96 // lpb) * length
         self.ticks_per_step = 96 // lpb
         self.ticks = int(pos * self.ticks_per_step)
-        self.swing_factor = int((self.swing / self.lpb) * 4)
+        if self.swing >= 0:
+            self.swing_factor = int((self.swing / self.lpb) * 4)
+        else:
+            self.swing_factor = int((self.pattern.swing / self.lpb) * 4)
 
     def get_step_pos(self) -> int:
         return self.ticks // self.ticks_per_step
-
-    def reset(self) -> None:
-        self.ticks = 0
 
     def get_current_tick(self) -> int:
         return self.ticks % self.ticks_per_step
@@ -45,8 +54,8 @@ class Track:
         if lpb_div4 == 0:
             return True
         sixteenth_pos: int = self.step_pos // lpb_div4
-        is_on_downbeat: bool = sixteenth_pos % 2 == 0
-        return is_on_downbeat
+        on_downbeat: bool = sixteenth_pos % 2 == 0
+        return on_downbeat
 
     def tick(self, increment: int = 1) -> bool:
         self.ticks += increment
@@ -92,9 +101,15 @@ class Track:
 
     def adjust_swing(self, increment: int) -> None:
         current_swing: int = self.swing
-        new_swing: int = min(max(0, current_swing + increment), 24)
+        new_swing: int = min(max(-1, current_swing + increment), 24)
         self.swing = new_swing
-        self.swing_factor = int((self.swing / self.lpb) * 4)
+        if self.swing >= 0:
+            self.swing_factor = int((self.swing / self.lpb) * 4)
+        else:
+            self.swing_factor = int((self.pattern.swing / self.lpb) * 4)
+
+    def adjust_transpose(self, increment: int) -> None:
+        pass
 
     def adjust_length(self, increment: int) -> None:
         current_len: int = self.length
@@ -107,27 +122,18 @@ class Track:
         self.update_properties(new_len, self.lpb)
 
     def adjust_lpb(self, increment: int) -> None:
-        # Define current LPB, and fixed min/max values
         current_lpb: int = self.lpb
-        new_lpb: int = current_lpb
-
         min_lpb: int = 1
         max_lpb: int = 96
+        new_lpb = min(max(min_lpb, current_lpb + increment), max_lpb)
 
-        # Calculate the new LPB based on the increment
-        if increment > 0:
-            # Moving to the next higher divisor of 96
-            for new_lpb in range(current_lpb + 1, max_lpb + 1):
-                if 96 % new_lpb == 0:
-                    break
-        else:
-            # Moving to the next lower divisor of 96
-            for new_lpb in range(current_lpb - 1, min_lpb - 1, -1):
-                if 96 % new_lpb == 0:
-                    break
-
-        # Update the properties with the new LPB
         self.update_properties(self.length, new_lpb)
+
+    def handle_mute(self, send_note_offs: bool) -> None:
+        pass
+
+    def handle_solo(self) -> None:
+        pass
 
 
 class MidiTrack(Track):
@@ -140,7 +146,7 @@ class MidiTrack(Track):
         self.is_reversed: bool = False
         self.steps: list = [MidiStep() for _ in range(length)]
         self.transpose: int = 0
-        self.scale = CHROMATIC
+        self.scale = PATTERN
         # so we have 24 ticks per step at 4 lpb
         # lets set the swing in this way and then divide it as necessary when the lpb changes
         # a max swing of 23
@@ -152,6 +158,18 @@ class MidiTrack(Track):
     def reset(self) -> None:
         super().reset()
         self.is_reversed = False
+
+    def adjust_channel(self, increment: int) -> None:
+        self.midi_handler.all_notes_off(self.channel)
+        self.channel = max(0, min(15, self.channel + increment))
+
+    def adjust_scale(self, increment: int) -> None:
+        self.scale = min(20, max(-1, self.scale + increment))
+
+    def adjust_transpose(self, increment: int) -> None:
+        current_transpose: int = self.transpose
+        new_transpose: int = min(max(-48, current_transpose + increment), 48)
+        self.transpose = new_transpose
 
     def handle_mute(self, send_note_offs: bool):
         self.is_muted = not self.is_muted

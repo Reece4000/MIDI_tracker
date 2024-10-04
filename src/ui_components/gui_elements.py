@@ -81,12 +81,9 @@ class Button(UiComponent):
 
 class KeyHints:
     def __init__(self):
-        self.x1 = display.pattern_area_width + display.timeline_width + display.col_w - 2
-        self.x2 = self.x1 + 141
+        self.x1 = display.pattern_area_width + display.timeline_width + display.col_w + 5
+        self.x2 = self.x1 + 125
         self.y = display.display_h - 84
-
-        self.img_x = display.pattern_area_width + display.timeline_width + 45
-        self.img_y = display.display_h - 92
 
         self.current_items = None
 
@@ -97,21 +94,20 @@ class KeyHints:
         if items != self.current_items:
             self.current_items = items
 
-            elems.append([RECT, themeing.LINE_16_HL_BG, display.track_x_positions[7] + 100,
-                          606, 250, 96, 0])
-
-            elems.append([RECT, themeing.BG_COLOR, display.track_x_positions[7] + 102,
-                          608, 246, 92, 0])
+            elems.append([RECT, themeing.BG_COLOR, display.track_x_positions[7] + 101,
+                          606, 247, 96, 0])
+            elems.append([RECT, themeing.DARK, display.track_x_positions[7] + 100,
+                          606, 249, 96, 1])
 
             to_render = [[ self.x1, self.y + 4, items[0][0]],         [ self.x1, self.y + 52, items[0][1]],
-                         [ self.x1 - 24, self.y + 28, items[0][2]],   [ self.x1 + 24, self.y + 28, items[0][3]],
+                         [ self.x1 - 26, self.y + 28, items[0][2]],   [ self.x1 + 26, self.y + 28, items[0][3]],
 
                          [self.x2, self.y + 4, items[1][0]],          [self.x2, self.y + 52, items[1][1]],
-                         [self.x2 - 25, self.y + 29, items[1][2]],    [self.x2 + 25, self.y + 29, items[1][3]]]
+                         [self.x2 - 27, self.y + 29, items[1][2]],    [self.x2 + 27, self.y + 29, items[1][3]]]
 
             for itm in to_render:
-                elems.append([CIRCLE, (40, 65, 65), (itm[0] + 12, itm[1] + 4), 15, 0])
-                elems.append([CIRCLE, (100, 255, 255), (itm[0] + 12, itm[1] + 4), 15, 1])
+                elems.append([CIRCLE, themeing.LINE_16_HL_BG, (itm[0] + 12, itm[1] + 4), 17, 0])
+                elems.append([CIRCLE, themeing.DARK, (itm[0] + 12, itm[1] + 4), 17, 1])
                 elems.append([TEXT, "tracker_info_font", themeing.WHITE, itm[2], itm[0], itm[1], 0])
 
             self.current_items = items

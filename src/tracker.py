@@ -62,7 +62,6 @@ class Tracker:
         self.is_playing = False
         self.follow_playhead = False
 
-
         self.clock = Clock(bpm=self.cursor_pattern.bpm, callback=self.tick)
         self._tick_mutex = Lock()
         self.ticks = 0
@@ -71,7 +70,7 @@ class Tracker:
         self.mouse_y = 0
 
         self.octave_mod = 2
-        self.channel_ccs = [[i for i in range(1, 17)] for _ in range(8)]
+        self.channel_ccs = [[i for i in range(1, 17)] for _ in range(16)]
 
         self.last_note = constants.start_note
         self.last_vel = constants.start_vel
@@ -377,8 +376,10 @@ class Tracker:
     def handle_param_adjust(self, increment, axis=False):
         try:
             self.pages[self.page].handle_param_adjust(increment, axis)
-        except TypeError:
-            print("Error: handle_param_adjust method not implemented for current page", self.page,
+        except TypeError as e:
+            import traceback
+            traceback.print_exc()
+            print(f"Error {e}: handle_param_adjust method not implemented for current page", self.page,
                   "Please implement this method in the current page class", "Page = ", self.pages[self.page])
 
     def move_in_place(self, x, y):

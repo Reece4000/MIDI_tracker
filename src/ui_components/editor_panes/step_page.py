@@ -1,5 +1,5 @@
 from src.ui_components.editor_panes.menu_page import MenuPage
-from src.utils import midi_to_note
+from src.utils import midi_to_note, get_increment
 from config.render_map import *
 from config.pages import PATTERN
 from config import themeing
@@ -27,7 +27,7 @@ class StepPage(MenuPage):
 
     def move_cursor(self, x, y):
         def get_max_x(curs_y):
-            return 3 if curs_y > 7 else 2 if curs_y > 3 else 1
+            return 1 if curs_y > 7 else 2 if curs_y > 3 else 1
 
         if x != 0:
             self.cursor_x = max(min(get_max_x(self.cursor_y), self.cursor_x + x), 0)
@@ -37,7 +37,6 @@ class StepPage(MenuPage):
 
     def handle_select(self):
         step = self.tracker.get_selected_step()
-        sel_track_index = self.tracker.pages[PATTERN].cursor_x
         if self.cursor_y < 4:
             if self.cursor_x == 0:
                 if step.notes[self.cursor_y] is None:
@@ -50,6 +49,7 @@ class StepPage(MenuPage):
                     if step.notes[self.cursor_y] != -1:
                         self.tracker.last_vel = step.velocities[self.cursor_y]
         elif self.cursor_y >= 8:
+            """
             if self.cursor_x in [0, 2]:
                 ccs = self.tracker.channel_ccs[sel_track_index]
                 cc_control_index = self.cursor_y if self.cursor_x == 2 else self.cursor_y - 8
@@ -58,12 +58,12 @@ class StepPage(MenuPage):
                 else:
                     cc_to_insert = self.tracker.last_cc
                     self.tracker.update_channel_ccs(sel_track_index, cc_control_index, cc_to_insert)
-            if self.cursor_x in [1, 3]:
-                cc_val_index = self.cursor_y if self.cursor_x == 3 else self.cursor_y - 8
-                if step.ccs[cc_val_index] is not None:
-                    self.tracker.last_cc_val = step.ccs[self.cursor_y - 8]
-                else:
-                    step.update_cc(cc_val_index, self.tracker.last_cc_val)
+            """
+            cc_val_index = self.cursor_y if self.cursor_x == 1 else self.cursor_y - 8
+            if step.ccs[cc_val_index] is not None:
+                self.tracker.last_cc_val = step.ccs[cc_val_index]
+            else:
+                step.update_cc(cc_val_index, self.tracker.last_cc_val)
         return 1
 
     def handle_delete(self, remove_steps):
@@ -82,39 +82,36 @@ class StepPage(MenuPage):
                     step.update_velocity(self.cursor_y, 0)
 
         elif self.cursor_y >= 8:
-            cc_index = self.cursor_y - 8
-            if self.cursor_x == 0:
-                self.tracker.update_channel_ccs(sel_track_index, cc_index, None)
-            elif self.cursor_x == 1:
-                if step.ccs[cc_index] > 0:
-                    step.update_cc(cc_index, 0)
-                else:
-                    step.update_cc(cc_index, None)
+            cc_index = self.cursor_y - 8 if self.cursor_x == 0 else self.cursor_y
+            if step.ccs[cc_index] > 0:
+                step.update_cc(cc_index, 0)
+            else:
+                step.update_cc(cc_index, None)
 
     def handle_insert(self):
         pass
 
     def handle_copy(self):
+        step = self.tracker.get_selected_step()
         if self.cursor_y < 4:
-            step = self.tracker.get_selected_step()
             if self.cursor_x == 0:
                 self.clipboard["note"] = step.notes[self.cursor_y]
             elif self.cursor_x == 1:
                 self.clipboard["value"] = step.velocities[self.cursor_y]
         elif 4 <= self.cursor_y < 8:
-            step = self.tracker.get_selected_step()
             if self.cursor_x == 0:
                 self.clipboard["component"] = step.components[self.cursor_y - 4]
             else:
                 self.clipboard["value"] = step.components[self.cursor_y - 4]
         elif self.cursor_y >= 8:
-            sel_track_index = self.tracker.pages[PATTERN].cursor_x
+            """
             if self.cursor_x in [0, 2]:
                 cc_index = self.cursor_y if self.cursor_x == 2 else self.cursor_y - 8
                 self.clipboard["value"] = self.tracker.channel_ccs[sel_track_index][cc_index]
             elif self.cursor_x in [1, 3]:
-                cc_index = self.cursor_y - 8
-                self.clipboard["value"] = self.tracker.get_selected_step().ccs[cc_index]
+            """
+            cc_index = self.cursor_y if self.cursor_x == 1 else self.cursor_y - 8
+            self.clipboard["value"] = step.ccs[cc_index]
 
     def handle_param_adjust(self, increment, axis=False):
         step = self.tracker.get_selected_step()
@@ -123,17 +120,16 @@ class StepPage(MenuPage):
         elif 4 <= self.cursor_y < 8:
             self.adjust_component(step, self.cursor_y - 4, increment, preview=(not axis))
         elif self.cursor_y >= 8:
-            cc_index = self.cursor_y - 8 if self.cursor_x in [0, 1] else self.cursor_y
+            cc_index = self.cursor_y - 8 if self.cursor_x == 0 else self.cursor_y
             self.adjust_cc(step, cc_index, increment, preview=(not axis))
 
     def adjust_note(self, step, note_index, increment, preview=True):
         if step.notes[note_index] is not None:
             if self.cursor_x == 0:
-                new_note = max(min(131, step.notes[note_index] + increment), 0)
+                new_note = max(min(131, step.notes[note_index] + get_increment(increment, "note")), 0)
                 self.tracker.last_note = step.update_note(note_index, new_note)
             elif self.cursor_x == 1:
-                increment = 10 if increment == 12 else (-10 if increment == -12 else increment)
-                new_vel = max(min(127, step.velocities[note_index] + increment), 0)
+                new_vel = max(min(127, step.velocities[note_index] + get_increment(increment, "velocity")), 0)
                 self.tracker.last_vel = step.update_velocity(note_index, new_vel)
         if preview:
             self.tracker.preview_step(notes_only=True)
@@ -143,19 +139,23 @@ class StepPage(MenuPage):
 
     def adjust_cc(self, step, cc_index, increment, preview=True):
         sel_track_index = self.tracker.pages[PATTERN].cursor_x
-        increment = 10 if increment == 12 else (-10 if increment == -12 else increment)
+        """
         if self.cursor_x in [0, 2]:
             current_cc = self.tracker.channel_ccs[sel_track_index][cc_index]
             if current_cc is not None:
                 new = max(min(127, current_cc + increment), 1)
                 self.tracker.update_channel_ccs(sel_track_index, cc_index, new)
         elif self.cursor_x in [1, 3]:
-            if step.ccs[cc_index] is not None:
-                new_cc_val = max(min(127, step.ccs[cc_index] + increment), 0)
-                self.tracker.last_cc_val = step.update_cc(cc_index, new_cc_val)
-            else:
-                step.update_cc(cc_index, self.tracker.last_cc_val)
-            self.tracker.midi_handler.send_cc(sel_track_index, cc_index + 1, self.tracker.last_cc_val)
+        """
+
+        if step.ccs[cc_index] is not None:
+            new_cc_val = max(min(127, step.ccs[cc_index] + get_increment(increment, "cc")), 0)
+            self.tracker.last_cc_val = step.update_cc(cc_index, new_cc_val)
+        else:
+            step.update_cc(cc_index, self.tracker.last_cc_val)
+
+        cc_control = self.tracker.channel_ccs[sel_track_index][cc_index]
+        self.tracker.midi_handler.send_cc(sel_track_index, cc_control, self.tracker.last_cc_val)
 
         if preview:
             self.tracker.preview_step(notes_only=True)
@@ -246,25 +246,25 @@ class StepPage(MenuPage):
             cc_control_text_right = f"{channel_ccs[i + 8]:0>3}" if channel_ccs is not None else "---"
             cc_value_text_right = f"{step.ccs[i + 8]:0>3}" if step.ccs[i + 8] is not None else "---"
 
-            text_col, bg_col = get_colors(sel_table, is_active, i + 8, 0)
+            text_col, bg_col = themeing.CC_CONTROL_COLOR, self.bg
             self.to_render[(i + 8, 0)] = [[RECT, bg_col, self.cc_x1 - 3, self.cc_y[i],
                                            self.cc_control_w, self.cell_h, 0],
                                           [TEXT, "textbox_font", text_col, cc_control_text_left,
                                            self.cc_x1 + 11, self.cc_y[i], 0]]
 
-            text_col, bg_col = get_colors(sel_table, is_active, i + 8, 1, is_control=False)
+            text_col, bg_col = get_colors(sel_table, is_active, i + 8, 0, is_control=False)
             self.to_render[(i + 8, 1)] = [[RECT, bg_col, self.cc_val_x1 - 3, self.cc_y[i],
                                            self.cc_val_w, self.cell_h, 0],
                                           [TEXT, "textbox_font", text_col, cc_value_text_left,
                                            self.cc_val_x1 + 6, self.cc_y[i], 0]]
 
-            text_col, bg_col = get_colors(sel_table, is_active, i + 8, 2)
+            text_col, bg_col = themeing.CC_CONTROL_COLOR, self.bg
             self.to_render[(i + 8, 2)] = [[RECT, bg_col, self.cc_x2 - 3, self.cc_y[i],
                                            self.cc_control_w, self.cell_h, 0],
                                           [TEXT, "textbox_font", text_col, cc_control_text_right,
                                            self.cc_x2 + 11, self.cc_y[i], 0]]
 
-            text_col, bg_col = get_colors(sel_table, is_active, i + 8, 3, is_control=False)
+            text_col, bg_col = get_colors(sel_table, is_active, i + 8, 1, is_control=False)
             self.to_render[(i + 8, 3)] = [[RECT, bg_col, self.cc_val_x2 - 3, self.cc_y[i],
                                            self.cc_val_w, self.cell_h, 0],
                                           [TEXT, "textbox_font", text_col, cc_value_text_right,

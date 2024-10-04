@@ -2,6 +2,7 @@ from src.ui_components.editor_panes.menu_page import MenuPage
 from config.render_map import *
 from config import themeing, scales
 from config import events
+from src.utils import get_increment
 
 NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
@@ -29,23 +30,21 @@ class TrackPage(MenuPage):
         curr_track = tracker.get_selected_track()
         if self.active:
             if self.cursor_y == 0:
-                curr_track.channel = (curr_track.channel + increment) % 16
+                curr_track.adjust_channel(get_increment(increment, "channel"))
             if self.cursor_y == 1:
-                tracker.adjust_length(increment)
+                tracker.adjust_length(get_increment(increment, "length"))
             elif self.cursor_y == 2:
-                tracker.adjust_lpb(increment)
+                tracker.adjust_lpb(get_increment(increment, "lpb"))
             elif self.cursor_y == 3:
-                curr_track.swing = (curr_track.swing + increment) % 24
-                curr_track.adjust_swing(increment)
+                curr_track.adjust_swing(get_increment(increment, "swing"))
             elif self.cursor_y == 4:
-                curr_track.transpose += increment
+                curr_track.adjust_transpose(get_increment(increment, "note"))
             elif self.cursor_y == 5:
-                curr_track.scale += increment
-                curr_track.scale = -1 if curr_track.scale > 20 else 20 if curr_track.scale < -1 else curr_track.scale
+                curr_track.adjust_scale(get_increment(increment, "scale"))
             elif self.cursor_y == 6:
-                curr_track.handle_mute()
+                curr_track.handle_mute(send_note_offs=tracker.is_playing)
             elif self.cursor_y == 7:
-                curr_track.is_soloed = not curr_track.is_soloed
+                curr_track.handle_solo()
 
     def update_view(self, tracker, editor_active):
         curr_track = tracker.get_selected_track()
@@ -54,7 +53,10 @@ class TrackPage(MenuPage):
         if self.active:
             length = str(curr_track.length)
             lpb = str(curr_track.lpb)
-            swing = str(curr_track.swing)
+            if curr_track.swing >= 0:
+                swing = str(curr_track.swing)
+            else:
+                swing = "PATTERN"
             root_note = NOTES[curr_track.transpose % 12]
             pitch_transpose = f"{curr_track.transpose} ({root_note})"
             if curr_track.transpose > 0:

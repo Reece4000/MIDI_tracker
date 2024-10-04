@@ -1,7 +1,7 @@
 import time
 from collections import defaultdict
 from typing import Callable, TypeVar, Any
-from config.constants import note_base_names, timeline_length
+from config.constants import note_base_names, timeline_length, INCREMENTS
 # import src.cython.c_utils as c_utils
 
 measured_times = defaultdict(list)
@@ -11,6 +11,13 @@ R = TypeVar('R')
 def get_polygon_coords(x, y, w, h):
     """ widths should be even numbers """
     return tuple(((x, y), (x + w//2, y + h), (x + w, y)))
+
+
+def get_increment(increment, val_type):
+    if increment == 0:
+        return 0
+    size = "large" if abs(increment) > 1 else "small"
+    return INCREMENTS[val_type][size] if increment > 0 else -INCREMENTS[val_type][size]
 
 
 def transpose_to_scale(notes, scale):

@@ -7,18 +7,30 @@ class Pattern:
         self.tracker = tracker
         self.num = num
         self.bpm = bpm
-        self.master_track = MasterTrack(length, lpb, pattern=self)
-        self.midi_tracks = [MidiTrack(i, length, lpb, pattern=self) for i in range(constants.track_count)]
-        self.loops = 1
         self.swing = swing
         self.scale = CHROMATIC
+        self.transpose = 0
+        self.loops = 1
+        self.master_track = MasterTrack(length, lpb, pattern=self)
+        self.midi_tracks = [MidiTrack(i, length, lpb, pattern=self) for i in range(constants.track_count)]
         self.tracks = [self.master_track] + self.midi_tracks
 
         # self.transposition = [0, 0, 0, 0, 0, 0, 0, 0]  # independent transposition per track
         # self.fit_to_scale = [0, 0, 0, 0, 0, 0, 0, 0]  # independent scale per track
         # self.swing = [0, 0, 0, 0, 0, 0, 0, 0]  # independent swing per track
 
-        self.set_swing()
+    def adjust_swing(self, increment: int) -> None:
+        current_swing: int = self.swing
+        new_swing: int = min(max(-1, current_swing + increment), 24)
+        self.swing = new_swing
+
+    def adjust_transpose(self, increment: int) -> None:
+        current_transpose: int = self.transpose
+        new_transpose: int = min(max(-48, current_transpose + increment), 48)
+        self.transpose = new_transpose
+
+    def adjust_scale(self, increment: int) -> None:
+        self.scale = min(20, max(0, self.scale + increment))
 
     def synchronise_playheads(self):
         master_track_step_pos = self.master_track.get_step_pos()
@@ -35,12 +47,6 @@ class Pattern:
     def reverse_tracks(self):
         for track in self.midi_tracks:
             track.reverse()
-
-    def set_swing(self):
-        for track in self.tracks:
-            if not track.is_master:
-                track.swing = self.swing
-                track.swing_factor = int((track.swing / track.lpb) * 4)
 
     def json_serialize(self):
         pass

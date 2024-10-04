@@ -13,7 +13,7 @@ class MenuPage:
         self.x = x
         self.y = y + 4
         self.y_actual = y
-        self.w = 250
+        self.w = 249
         self.h_closed = 35
         self.h_open = 495
         self.h_actual = self.h_closed

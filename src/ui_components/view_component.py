@@ -20,7 +20,7 @@ class ViewComponent:
             self.tracker.renderer.render_queue.appendleft([render_map.RECT, color, *self.page_active_coords])
         self.flag_state_change()
 
-    def flag_state_change(self):
+    def flag_state_change(self, *args):
         self.selected_rows = self.get_selected_rows()
         self.state_changed = True
 

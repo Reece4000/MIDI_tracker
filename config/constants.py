@@ -48,5 +48,44 @@ master_component_mapping = {
             'Color': (255, 50, 50)}
 }
 
+INCREMENTS = {
+    "bpm": {
+        "large": 10,
+        "small": 1
+    },
+    "note": {
+        "large": 12,
+        "small": 1
+    },
+    "velocity": {
+        "large": 10,
+        "small": 1
+    },
+    "cc": {
+        "large": 10,
+        "small": 1
+    },
+    "swing": {
+        "large": 4,
+        "small": 1
+    },
+    "scale": {
+        "large": 4,
+        "small": 1
+    },
+    "channel": {
+        "large": 10,
+        "small": 1
+    },
+    "lpb": {
+        "large": 4,
+        "small": 1
+    },
+    "length": {
+        "large": 16,
+        "small": 1
+    }
+}
+
 FOLLOW_MASTER = 0
 FOLLOW_PATTERN = 1

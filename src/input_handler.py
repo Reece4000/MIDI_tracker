@@ -121,19 +121,14 @@ class InputHandler:
         if self.joystick is not None:
             joy_l1 = self.joystick.get_button(self.joy_btn_mapping["L1"])
             joy_r1 = self.joystick.get_button(self.joy_btn_mapping["R1"])
-            # joy_r2 = self.joystick.get_axis(self.joy_axis_mapping["R2"]) > -0.25
-            # joy_l2 = self.joystick.get_axis(self.joy_axis_mapping["L2"]) > -0.25
         else:
             joy_l1 = joy_r1 = joy_r2 = joy_l2 = None
 
         self.mods["l1"] = (mods & pygame.KMOD_LCTRL) or joy_l1
         self.mods["r1"] = (mods & pygame.KMOD_LALT) or joy_r1
 
-        # self.mods["ctrl"] = (mods & pygame.KMOD_LCTRL) or joy_l1
-        # self.mods["alt"] = (mods & pygame.KMOD_LALT) or joy_r1
-        # self.mods["shift"] = (mods & pygame.KMOD_LSHIFT) or joy_l2
-
-
+        if self.mods["r1"] != self.tracker.pages[EDITOR].active:
+            self.tracker.toggle_editor_window()
 
     def handle_save(self):
         self.tracker.save_song()
@@ -151,10 +146,10 @@ class InputHandler:
         self.tracker.page_switch(-1 if self.mods["shift"] else 1)
 
     def handle_up(self, repeat_press=False):
-        if self.joy_btn_state[2]["Held"] and self.mods["r1"]:
-            self.tracker.move_in_place(0, -1)
-        elif self.mods["r1"] and self.tracker.page == EDITOR:
+        if self.joy_btn_state[2]["Held"] and self.tracker.page == EDITOR:
             self.tracker.pages[EDITOR].open_page(page_index=None, increment=-1)
+        elif self.joy_btn_state[2]["Held"]:
+            self.tracker.move_in_place(0, -1)
         elif self.joy_btn_state[0]["Held"] or self.select_held:
             self.tracker.handle_param_adjust(12)
         elif self.mods["ctrl"] and self.mods["alt"]:
@@ -168,10 +163,10 @@ class InputHandler:
             self.tracker.move_cursor(x=0, y=-1, expand_selection=self.joy_btn_state[2]["Held"])
 
     def handle_down(self, repeat_press=False):
-        if self.joy_btn_state[2]["Held"] and self.mods["r1"]:
-            self.tracker.move_in_place(0, 1)
-        elif self.mods["r1"] and self.tracker.page == EDITOR:
+        if self.joy_btn_state[2]["Held"] and self.tracker.page == EDITOR:
             self.tracker.pages[EDITOR].open_page(page_index=None, increment=1)
+        elif self.joy_btn_state[2]["Held"]:
+            self.tracker.move_in_place(0, 1)
         elif self.joy_btn_state[0]["Held"] or self.select_held:
             self.tracker.handle_param_adjust(-12)
         elif self.mods["ctrl"] and self.mods["alt"]:
@@ -185,7 +180,7 @@ class InputHandler:
             self.tracker.move_cursor(x=0, y=1, expand_selection=self.joy_btn_state[2]["Held"])
 
     def handle_left(self, repeat_press=False):
-        if self.joy_btn_state[2]["Held"] and self.mods["r1"]:
+        if self.joy_btn_state[2]["Held"]:
             self.tracker.move_in_place(-1, 0)
         elif self.mods["l1"]: # and self.mods["r1"]:
             # self.event_bus.emit("page changed", -1)
@@ -204,7 +199,7 @@ class InputHandler:
             self.tracker.move_cursor(x=-1, y=0, expand_selection=self.joy_btn_state[2]["Held"])
 
     def handle_right(self, repeat_press=False):
-        if self.joy_btn_state[2]["Held"] and self.mods["r1"]:
+        if self.joy_btn_state[2]["Held"]:
             self.tracker.move_in_place(1, 0)
         elif self.mods["l1"]: # and self.mods["r1"]:
             # self.event_bus.emit("page changed", 1)
@@ -360,8 +355,6 @@ class InputHandler:
         elif button == self.joy_btn_mapping["Circle"]:
             if self.mods["l1"] and self.mods["r1"]:
                 pass
-            elif self.mods["r1"]:
-                self.tracker.handle_paste()
             elif self.mods["l1"]:
                 self.tracker.handle_delete(remove_steps=True)
             else:
@@ -373,8 +366,6 @@ class InputHandler:
                 pass
             elif self.mods["l1"]:  # L1
                 self.tracker.insert()
-            elif self.mods["r1"]:
-                self.tracker.toggle_editor_window()
             else:
                 if not self.joy_btn_state[0]["Held"]:
                     self.handle_select_press()
