@@ -1,5 +1,6 @@
 import sys
-import os 
+import os
+import asyncio
 import tracemalloc
 from src import utils
 from src.tracker import Tracker
@@ -64,7 +65,7 @@ def main():
         input(f"Error: {e}")
         sys.exit()
 
-    tracker.running_loop()
+    asyncio.run(tracker.running_loop())
 
     print_timings()
 

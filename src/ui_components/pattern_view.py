@@ -425,10 +425,11 @@ class PatternEditor(ViewComponent):
         assert self.master_track_view is not None
 
         y = self.master_track_view.cursor_y if self.y_anchor == FOLLOW_MASTER else self.cursor_y
+        on_playing_pattern = self.tracker.on_playing_pattern()
 
         for x, column in enumerate(self.cells):
             track = None if pattern is None else pattern.midi_tracks[x]
-            if track is not None and self.tracker.on_playing_pattern:
+            if track is not None and on_playing_pattern:
                 playhead_step = track.step_pos
             else:
                 playhead_step = None

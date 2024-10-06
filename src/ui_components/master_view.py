@@ -110,9 +110,10 @@ class MasterTrack(ViewComponent):
         y = self.pattern_view.cursor_y if self.y_anchor == FOLLOW_PATTERN else self.cursor_y
 
         track = None if pattern is None else pattern.master_track
+        on_playing_pattern = self.tracker.on_playing_pattern()
         for cell in self.cells:
             if track is not None:
-                playhead_step = track.step_pos if self.tracker.on_playing_pattern else None
+                playhead_step = track.step_pos if on_playing_pattern else None
             else:
                 playhead_step = None
 

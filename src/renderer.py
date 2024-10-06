@@ -17,7 +17,7 @@ class Renderer:
     def __init__(self, tracker):
         pygame.display.init()
         pygame.font.init()
-        self.screen = pygame.display.set_mode((display.display_w, display.display_h))
+        self.screen = pygame.display.set_mode((display.display_w, display.display_h), pygame.SCALED, vsync=1)
         self.screen_w, self.screen_h = display.display_w, display.display_h
         self.center_y = (self.screen_h + display.menu_height) // 2
         self.tracker = tracker

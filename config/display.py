@@ -3,7 +3,7 @@ from config.render_map import *
 from config.themeing import *
 from src.utils import get_polygon_coords
 
-FPS = 60
+FPS = 10
 
 # 1280 x 720 #
 left_pane = [RECT, TIMELINE_BG, 0, 0, 150, 720, 0]
@@ -26,7 +26,7 @@ timeline_offset = row_h * 3 + 5
 num_timeline_cells = 24
 timeline_cell_w = 30
 timeline_cell_h = 24
-display_w, display_h = 1180, 714  # 1220, 706
+display_w, display_h = 1180, 747  # 1220, 706
 
 # TIMELINE
 timeline_area_y = menu_height + pattern_area_height + 12
@@ -75,7 +75,7 @@ play_x, play_y = 15, 12
 detail_window_replace_bg_h = 580
 detail_window_title_h = 36
 
-timeline_page_border = (timeline_width + 11, timeline_area_y - 2, 868, 64, 1)
+timeline_page_border = (timeline_width + 12, timeline_area_y - 4, 864, 98, 1)
 song_page_border = (4, timeline_area_y-1, timeline_cell_w+4, timeline_area_height+2, 1)
 phrase_page_border = (41, timeline_area_y-1, timeline_cell_w+4, timeline_area_height+2, 1)
 master_page_border = (timeline_width + 12, 1, 93, menu_height + pattern_area_height + 3, 1)

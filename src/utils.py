@@ -76,10 +76,8 @@ def midi_to_note(midi_note):
 
 
 def calculate_timeline_increment(current_value, increment):
-    if current_value is None and increment < 0:
-        return None
-    elif current_value is None and increment > 0:
-        return increment - 1
+    if current_value is None:
+        return None if increment < 0 else increment - 1
     elif current_value == 0 and increment < 0:
         return None
     elif current_value > 0 > increment:

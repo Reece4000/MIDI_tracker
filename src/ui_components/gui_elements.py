@@ -253,7 +253,8 @@ class PatternCell(UiComponent):
         # top left cursor, top right, bottom left, bottom right
         self.state = [[], None, None, False, None, False, False, False]
 
-    def check_for_state_change(self, pattern, step_index, track, track_index, playhead_step, render_queue):
+    def check_for_state_change(self, pattern, step_index, track, track_index,
+                               playhead_step, render_queue):
 
         state = self.get_state(pattern, step_index, track, track_index, playhead_step)
 
@@ -364,15 +365,16 @@ class PatternCell(UiComponent):
             polygon_pts = [(xr + 1, yb), (xr + 1 - line_horz, yb), (xr + 1, yb - line_vert)]
             queue.appendleft([POLYGON, cursor_arrows_color, polygon_pts, 0])
 
+
 class TimelineCell(UiComponent):
     def __init__(self, offset, y, cell_type):
         super().__init__()
         self.type = cell_type
         self.y = y
-        self.x_screen = display.timeline_width + 113 + ((display.timeline_cell_w + 2) * y) # x - 2
-        self.y_screen = display.timeline_area_y + offset # display.timeline_area_y + (y * display.timeline_cell_h)
+        self.x_screen = display.timeline_width + 105 + ((display.timeline_cell_w + 2) * y) # x - 2
+        self.y_screen = display.timeline_area_y + offset  # display.timeline_area_y + (y * display.timeline_cell_h)
 
-        # text, text color, cursor, bg
+        # text, text_color, cursor_color, bg
         self.state = [None, None, None, None]
 
     def get_colors(self, step_index, cursor_pos, x, active):
@@ -386,18 +388,20 @@ class TimelineCell(UiComponent):
         elif step_index == cursor_pos:
             cursor = themeing.CURSOR_COLOR_ALT
         else:
-            cursor = themeing.BLACK
+            cursor = bg
 
         return bg, cursor
 
     def draw(self, render_queue):
-        text, text_color, cursor, bg = self.state
+        text, text_color, cursor_color, bg = self.state
         x, y = self.x_screen, self.y_screen
         w, h = display.timeline_cell_w - 2, display.timeline_cell_h
-        #render_queue.appendleft([CIRCLE_NO_DIRTY, bg, (x + 14, y + 12), 12, 0])
-        #render_queue.appendleft([CIRCLE, cursor, (x + 14, y + 12), 12, 1])
-        render_queue.appendleft([RECT, cursor, x - 2, y + 1, w, h, 1])
-        render_queue.appendleft([RECT_NO_DIRTY, bg, x, y + 3, w - 4, h - 4, 0])
+
+        polygon_pts = [(x + 6, y -10), (x + 12, y - 4), (x + 18, y - 10)]
+        render_queue.appendleft([POLYGON, text_color, polygon_pts, 0])
+        render_queue.appendleft([RECT, cursor_color, x-2, y+2, w, h-2, 0])
+
+        text_color = themeing.WHITE if cursor_color == bg else themeing.BLACK
         if text is not None:
             render_queue.appendleft([TEXT, "tracker_timeline_font", text_color, text, x, y + 4, 0])
 

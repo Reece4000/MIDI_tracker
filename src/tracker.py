@@ -1,4 +1,5 @@
 import pygame
+import asyncio
 from threading import Lock
 from time import perf_counter
 
@@ -105,26 +106,6 @@ class Tracker:
             if i != PATTERN:
                 self.pages[PATTERN].toggle_active()
 
-    def running_loop(self):
-        try:
-            self.running = True
-            render_interval = 1 / display.FPS
-            last_render_time = perf_counter()
-            while self.running:
-                self.handle_events()
-                curr_time = perf_counter()
-                elapsed = curr_time - last_render_time
-                if elapsed >= render_interval:
-                    self.update_view_states()
-                    last_render_time = curr_time
-                else:
-                    # use pygame wait instead of time.sleep to avoid blocking the event loop
-                    pygame.time.wait(int((render_interval - elapsed) * 1000))
-
-        finally:
-            print("Cleaning up and exiting...")
-            self.quit()
-
     @timing_decorator
     def update_view_states(self):
         self.info_pane.update_view()
@@ -133,6 +114,26 @@ class Tracker:
                 page.update_view()
         self.renderer.process_queue()
         self.renderer.update_screen()
+
+    async def handle_events(self):
+        input_return = self.input_handler.check_for_events(current_time=perf_counter())
+        if input_return == "Exit":
+            self.running = False
+
+    async def running_loop(self):
+        self.running = True
+        loop = asyncio.get_event_loop()
+        while self.running:
+            try:
+                events_handled = loop.create_task(self.handle_events())
+                await loop.run_in_executor(None, self.update_view_states)
+                await events_handled
+            except Exception as e:
+                print(f"Error in running loop: {e}")
+                self.running = False
+
+        print("Cleaning up and exiting...")
+        self.quit()
 
     def quit(self):
         self.renderer.quit()
@@ -160,12 +161,15 @@ class Tracker:
         return self.pages[TIMELINE].pages[TIMELINE_PHRASE].cursor_x
 
     def get_selected_phrase(self):
-        return self.add_phrase(self.song[self.get_song_cursor()])
+        return self.add_phrase_if_not_exists(self.song[self.get_song_cursor()])
 
     def get_selected_pattern(self, num=False):
         selected_phrase = self.get_selected_phrase()
         phrase_cursor = self.get_phrase_cursor()
-        selected_pattern = self.add_pattern(selected_phrase[phrase_cursor])
+        selected_pattern = self.add_pattern_if_not_exists(selected_phrase[phrase_cursor])
+        if selected_pattern is None:
+            return None
+
         return selected_pattern.num if num else selected_pattern
 
     def get_playing_phrase(self):
@@ -320,7 +324,7 @@ class Tracker:
 
         return new_pattern_num
 
-    def add_pattern(self, pattern_num):
+    def add_pattern_if_not_exists(self, pattern_num):
         if pattern_num not in self.pattern_pool.keys():
             new = Pattern(pattern_num, self.last_length, self.last_lpb,
                           self.last_bpm, self.last_swing, tracker=self)
@@ -328,24 +332,25 @@ class Tracker:
 
         return self.pattern_pool[pattern_num]
 
-    def add_phrase(self, phrase_num):
+    def add_phrase_if_not_exists(self, phrase_num):
         if phrase_num not in self.phrase_pool.keys():
             self.phrase_pool[phrase_num] = [None for _ in range(1000)]
 
         return self.phrase_pool[phrase_num]
 
-    def update_song_step(self, index, value):
+    def adjust_song_step(self, index, value):
         new_val = calculate_timeline_increment(self.song[index], value)
         self.song[index] = new_val
-        if new_val is not None:
-            self.add_phrase(new_val)
+        self.add_phrase_if_not_exists(new_val)
+        return new_val
 
-    def update_phrase_step(self, index, value):
-        song_cursor = self.get_song_cursor()
-        new_val = calculate_timeline_increment(self.phrase_pool[self.song[song_cursor]][index], value)
-        self.phrase_pool[self.song[song_cursor]][index] = new_val
-        if new_val is not None:
-            self.add_pattern(new_val)
+    def adjust_phrase_step(self, index, increment):
+        selected_phrase = self.get_selected_phrase()
+        new_val = calculate_timeline_increment(selected_phrase[index], increment)
+        selected_phrase[index] = new_val
+        self.add_pattern_if_not_exists(new_val)
+        return new_val
+
 
     def get_selected_step(self, track=None):
         if track is None:
@@ -401,28 +406,19 @@ class Tracker:
 
     def toggle_editor_window(self):
         if self.pages[EDITOR].active:
-            prev_page = self.pages[EDITOR].previous_page
-            if prev_page is None:
-                self.page_switch(page_num=PATTERN)
-            else:
-                self.page_switch(page_num=prev_page)
+            self.page_switch(page_num=PATTERN)
         else:
             self.pages[EDITOR].previous_page = self.page
             self.page_switch(page_num=EDITOR)
 
     def toggle_timeline_view(self):
         if self.pages[TIMELINE].active:
-            prev_page = self.pages[TIMELINE].previous_page
-            if prev_page is None:
-                self.page_switch(PATTERN)
-            else:
-                self.page_switch(prev_page)
+            self.page_switch(PATTERN)
         else:
             self.pages[TIMELINE].previous_page = self.page
             self.page_switch(TIMELINE)
 
     def page_switch(self, page_num=None):
-
         if page_num is None:
             self.page = PATTERN if self.page == MASTER else MASTER  # (self.page + direction) % (len(self.pages) - 1)
         else:
@@ -434,6 +430,7 @@ class Tracker:
             if (i != self.page and view.active) or (i == self.page and not view.active):
                 view.toggle_active()
 
+        """
         for i, page in self.pages.items():
             print("tracker:", i, page.active)
             if i == EDITOR:
@@ -442,11 +439,7 @@ class Tracker:
             elif i == TIMELINE:
                 for j, view in enumerate(page.pages):
                     print("timeline", j, view.active)
-
-    def handle_events(self):
-        input_return = self.input_handler.check_for_events(current_time=perf_counter())
-        if input_return == "Exit":
-            self.running = False
+        """
 
     def stop_preview(self):
         selected_pattern = self.get_selected_pattern()
@@ -539,7 +532,6 @@ class Tracker:
 
     # so we want to update the pattern step in the phrase track to the new pattern number
     # then we want to update the current pattern to the new pattern number
-    
     def insert_pattern(self):
         phrase_cursor = self.pages[TIMELINE].pages[TIMELINE_PHRASE].cursor_x
         if phrase_cursor + 1 >= self.timeline_length:
@@ -550,10 +542,10 @@ class Tracker:
             if i not in self.pattern_pool.keys():
                 while self.cursor_phrase[phrase_cursor] is not None:
                     phrase_cursor += 1
-                self.update_phrase_step(phrase_cursor, i + 1)
+                self.adjust_phrase_step(phrase_cursor, i + 1)
                 self.pages[TIMELINE].pages[TIMELINE_PHRASE].cursor_x = phrase_cursor
                 break
-    
+
     def insert_phrase(self):
         song_cursor = self.pages[TIMELINE].pages[TIMELINE_SONG].cursor_x
         phrase_cursor = self.pages[TIMELINE].pages[TIMELINE_PHRASE].cursor_x
@@ -564,7 +556,7 @@ class Tracker:
             if i not in self.phrase_pool.keys():
                 while self.song[song_cursor] is not None:
                     song_cursor += 1
-                self.update_song_step(song_cursor, i + 1)
+                self.adjust_song_step(song_cursor, i + 1)
                 break
 
     def jump_page(self, opt):

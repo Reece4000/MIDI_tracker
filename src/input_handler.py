@@ -200,7 +200,7 @@ class InputHandler:
             self.tracker.move_in_place(x=-1, y=0)
         elif self.mods["l1"]:
             if not repeat_press:
-                self.tracker.page_switch(-1)
+                self.tracker.page_switch()
         elif self.joy_btn_state[0]["Held"] or self.select_held:
             self.tracker.handle_param_adjust(-1)
         elif self.mods["ctrl"] and self.mods["shift"]:
@@ -220,7 +220,7 @@ class InputHandler:
             self.tracker.move_in_place(x=1, y=0)
         elif self.mods["l1"]: # and self.mods["r1"]:
             if not repeat_press:
-                self.tracker.page_switch(1)
+                self.tracker.page_switch()
         elif self.joy_btn_state[0]["Held"] or self.select_held:
             self.tracker.handle_param_adjust(1)
             return
