@@ -1,5 +1,6 @@
 from src.ui_components.editor_panes.menu_page import MenuPage
 from src.utils import midi_to_note, get_increment
+from src.steps import EMPTY_MIDI_STEP
 from config.render_map import *
 from config.pages import PATTERN
 from config import themeing
@@ -274,7 +275,7 @@ class StepPage(MenuPage):
         step = tracker.get_selected_step()
         if step is None:
             # set cells to empty or n/a here
-            pass
+            step = EMPTY_MIDI_STEP
 
         step_index = tracker.pages[PATTERN].cursor_y
         self.title = f"{self.name} {step_index}"

@@ -1,9 +1,14 @@
-SONG = 0
-PHRASE = 1
-MASTER = 2
-PATTERN = 3
-EDITOR = 4
+# main pages
+TIMELINE = 0
+MASTER = 1
+PATTERN = 2
+EDITOR = 3
 
+# timeline pages
+TIMELINE_PHRASE = 0
+TIMELINE_SONG = 1
+
+# editor window pages
 MIDI_STEP_EDIT = 0
 MASTER_STEP_EDIT = 1
 TRACK_EDIT = 2

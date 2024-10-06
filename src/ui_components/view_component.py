@@ -6,7 +6,7 @@ class ViewComponent:
         self.tracker = tracker
         self.page_active_coords = None
         self.cursor_x = self.cursor_y = self.cursor_w = self.cursor_h = 0
-        self.active = False
+        self.active = True
         self.state_changed = True
         self.clipboard = []
         self.selected_rows = self.get_selected_rows()

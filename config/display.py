@@ -15,22 +15,23 @@ options_button = [RECT, TIMELINE_BG_HL, 0, 0, 150, 28, 0]
 
 # MAIN DIMS
 block_size = 7
-row_h = 21
+row_h = 19
+cell_y_offset = 1
 visible_rows = 32
 center_y = visible_rows // 2
 col_w = 84
 menu_height = 28
 pattern_area_height = visible_rows * row_h
 timeline_offset = row_h * 3 + 5
-num_timeline_rows = 20
+num_timeline_cells = 24
 timeline_cell_w = 30
-timeline_cell_h = 19
-display_w, display_h = 1220, 706
+timeline_cell_h = 24
+display_w, display_h = 1180, 714  # 1220, 706
 
 # TIMELINE
-timeline_area_y = menu_height + row_h * 11 + 8
-timeline_area_height = num_timeline_rows * row_h
-timeline_width = 80
+timeline_area_y = menu_height + pattern_area_height + 12
+timeline_area_height = num_timeline_cells * row_h
+timeline_width = 40
 
 # timeline arrows
 x1, x2, y1, y2 = 14, 50, (row_h * 12 + 9), (row_h * 32 + 19)
@@ -68,13 +69,14 @@ pattern_area_width = track_x_positions[7] - 20
 cell_offs = 10
 cell_text_offs = 2
 
-play_x, play_y = 21, 190
+play_x, play_y = 15, 12
 
 
 detail_window_replace_bg_h = 580
 detail_window_title_h = 36
 
+timeline_page_border = (timeline_width + 11, timeline_area_y - 2, 868, 64, 1)
 song_page_border = (4, timeline_area_y-1, timeline_cell_w+4, timeline_area_height+2, 1)
 phrase_page_border = (41, timeline_area_y-1, timeline_cell_w+4, timeline_area_height+2, 1)
-master_page_border = (92, 1, 93, 704, 1)
-pattern_page_border = (225, 1, 730, 704, 1)
+master_page_border = (timeline_width + 12, 1, 93, menu_height + pattern_area_height + 3, 1)
+pattern_page_border = (timeline_width + 145, 1, 730, menu_height + pattern_area_height + 3, 1)

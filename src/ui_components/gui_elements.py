@@ -81,9 +81,9 @@ class Button(UiComponent):
 
 class KeyHints:
     def __init__(self):
-        self.x1 = display.pattern_area_width + display.timeline_width + display.col_w + 5
+        self.x1 = display.pattern_area_width + display.timeline_width + 130
         self.x2 = self.x1 + 125
-        self.y = display.display_h - 84
+        self.y = display.display_h - 87
 
         self.current_items = None
 
@@ -93,11 +93,11 @@ class KeyHints:
         elems = []
         if items != self.current_items:
             self.current_items = items
-
-            elems.append([RECT, themeing.BG_COLOR, display.track_x_positions[7] + 101,
-                          606, 247, 96, 0])
-            elems.append([RECT, themeing.DARK, display.track_x_positions[7] + 100,
-                          606, 249, 96, 1])
+            rect_y, rect_x = self.y - 16, self.x1 - 50
+            elems.append([RECT, themeing.BG_COLOR, rect_x + 1, rect_y, 247, 98, 0])
+            elems.append([RECT, themeing.BG_TASKPANE_HL, rect_x + 1, rect_y, 247, 98, 1])
+            # elems.append([RECT, themeing.BG_COLOR, rect_x + 1, rect_y + 106, 247, 49, 0])
+            # elems.append([RECT, themeing.BG_TASKPANE_HL, rect_x + 1, rect_y + 106, 247, 49, 1])
 
             to_render = [[ self.x1, self.y + 4, items[0][0]],         [ self.x1, self.y + 52, items[0][1]],
                          [ self.x1 - 26, self.y + 28, items[0][2]],   [ self.x1 + 26, self.y + 28, items[0][3]],
@@ -152,8 +152,8 @@ class PageSwitchMarkers:
 
 class PlayPause:
     def __init__(self):
-        self.x_screen = display.play_x + 1
-        self.y_screen = display.play_y + 1
+        self.x_screen = display.play_x
+        self.y_screen = display.play_y
         self.h = 16
         self.w = 12
         self.play_coords = [
@@ -169,19 +169,10 @@ class PlayPause:
         self.play_color = None
         self.pause_color = None
 
-
-
-    @staticmethod
-    def initialise():
-        elems = []
-        r, g, b = (60, 100, 100)
-        w = 24
-        centre = display.play_y + 9
-        elems.append([CIRCLE, (r, g, b), (37, centre), w, 0])
-        for i in range(w):
-            elems.append([CIRCLE, (r, g, b), (37, centre), w - i, 0])
-            r, g, b = r + 1, g + 1, b + 1
-        return elems
+    def initialise(self):
+        return [[RECT, themeing.BLACK, 0, 0, display.timeline_width, 40, 0],
+                [RECT, (26, 26, 26), 0, 0, display.timeline_width, 40, 3],
+                [RECT, (26, 26, 26), 0, 0, display.timeline_width, 18, 0]]
 
     def check_for_state_change(self, current_pulse, is_playing):
         elems = []
@@ -190,15 +181,15 @@ class PlayPause:
             pause_color = themeing.PLAY_PAUSE_OFF
         else:
             play_color = themeing.PLAY_PAUSE_OFF
-            pause_color = themeing.BLUE
+            pause_color = themeing.PLAY_PAUSE_OFF  # themeing.BLUE
 
         if play_color != self.play_color:
             elems.append([POLYGON, play_color, self.play_coords, 0])
             self.play_color = play_color
 
         if pause_color != self.pause_color:
-            elems.append([RECT, pause_color, *self.pause_rect1])
-            elems.append([RECT, pause_color, *self.pause_rect2])
+            # elems.append([RECT, pause_color, *self.pause_rect1])
+            # elems.append([RECT, pause_color, *self.pause_rect2])
             self.pause_color = pause_color
 
         return elems
@@ -214,7 +205,6 @@ class PatternInfoText:
 
         # pattern num, bars, bpm, repeats, swing, scale
         self.items = [None, None, None, None, None, None]
-
 
     def initialise(self):
         elems = [[RECT, themeing.BG_TASKPANE_HL, 0, 0, 79, self.sep * 6 + 2, 0],
@@ -279,7 +269,8 @@ class PatternCell(UiComponent):
             if components:
                 offset = 8
                 for (text, color) in components:  # step_text
-                    render_queue.appendleft([TEXT, "tracker_font", color, text, x + offset, y + 2, 0])
+                    render_queue.appendleft([TEXT, "tracker_font", color, text, x + offset,
+                                             y + display.cell_y_offset, 0])
                     offset += 29
 
             if tl or tr or bl or br:
@@ -358,32 +349,57 @@ class PatternCell(UiComponent):
     def draw_cell_cursor(selection, display_coords, cursor_arrows_color, queue):
         tl, tr, bl, br = selection
         x, y, w, h = display_coords
-        xt, xr, yt, yb = x, (x + w - 1), (y + 1), (y + h)
-        line_horz, line_vert, b = display.cursor_arrow_w, display.cursor_arrow_h, display.cursor_arrow_b
+        xt, xr, yt, yb = x - 1, (x + w), y, (y + h + 2)
+        line_horz, line_vert, b = 4, 4, 0 # display.cursor_arrow_w, display.cursor_arrow_h, display.cursor_arrow_b
         if tl:
-            queue.appendleft([LINE, cursor_arrows_color, (xt, yt), (xt + line_horz, yt), b])
-            queue.appendleft([LINE, cursor_arrows_color, (xt, yt), (xt, yt + line_vert), b])
+            polygon_pts = [(xt, yt), (xt + line_horz, yt), (xt, yt + line_vert)]
+            queue.appendleft([POLYGON, cursor_arrows_color, polygon_pts, 0])
         if tr:
-            queue.appendleft([LINE, cursor_arrows_color, (xr + 1, yt), (xr + 1 - line_horz, yt), b])
-            queue.appendleft([LINE, cursor_arrows_color, (xr, yt), (xr, yt + line_vert), b])
+            polygon_pts = [(xr + 1, yt), (xr + 1 - line_horz, yt), (xr + 1, yt + line_vert)]
+            queue.appendleft([POLYGON, cursor_arrows_color, polygon_pts, 0])
         if bl:
-            queue.appendleft([LINE, cursor_arrows_color, (xt, yb), (xt + line_horz, yb), b])
-            queue.appendleft([LINE, cursor_arrows_color, (xt, yb), (xt, yb - line_vert), b])
+            polygon_pts = [(xt, yb), (xt + line_horz, yb), (xt, yb - line_vert)]
+            queue.appendleft([POLYGON, cursor_arrows_color, polygon_pts, 0])
         if br:
-            queue.appendleft([LINE, cursor_arrows_color, (xr + 1, yb), (xr + 1 - line_horz, yb), b])
-            queue.appendleft([LINE, cursor_arrows_color, (xr, yb), (xr, yb - line_vert), b])
-
+            polygon_pts = [(xr + 1, yb), (xr + 1 - line_horz, yb), (xr + 1, yb - line_vert)]
+            queue.appendleft([POLYGON, cursor_arrows_color, polygon_pts, 0])
 
 class TimelineCell(UiComponent):
-    def __init__(self, x, y):
+    def __init__(self, offset, y, cell_type):
         super().__init__()
-        self.x = 0
+        self.type = cell_type
         self.y = y
-        self.x_screen = x - 2
-        self.y_screen = display.timeline_area_y + (y * display.row_h)
+        self.x_screen = display.timeline_width + 113 + ((display.timeline_cell_w + 2) * y) # x - 2
+        self.y_screen = display.timeline_area_y + offset # display.timeline_area_y + (y * display.timeline_cell_h)
 
         # text, text color, cursor, bg
         self.state = [None, None, None, None]
+
+    def get_colors(self, step_index, cursor_pos, x, active):
+        if self.type == "song":
+            bg = themeing.SONG_CELL_HL if not x % 2 else themeing.SONG_CELL
+        else:
+            bg = themeing.PHRASE_CELL_HL if not x % 2 else themeing.PHRASE_CELL
+
+        if active and step_index == cursor_pos:
+            cursor = themeing.CURSOR_COLOR
+        elif step_index == cursor_pos:
+            cursor = themeing.CURSOR_COLOR_ALT
+        else:
+            cursor = themeing.BLACK
+
+        return bg, cursor
+
+    def draw(self, render_queue):
+        text, text_color, cursor, bg = self.state
+        x, y = self.x_screen, self.y_screen
+        w, h = display.timeline_cell_w - 2, display.timeline_cell_h
+        #render_queue.appendleft([CIRCLE_NO_DIRTY, bg, (x + 14, y + 12), 12, 0])
+        #render_queue.appendleft([CIRCLE, cursor, (x + 14, y + 12), 12, 1])
+        render_queue.appendleft([RECT, cursor, x - 2, y + 1, w, h, 1])
+        render_queue.appendleft([RECT_NO_DIRTY, bg, x, y + 3, w - 4, h - 4, 0])
+        if text is not None:
+            render_queue.appendleft([TEXT, "tracker_timeline_font", text_color, text, x, y + 4, 0])
 
 
 class TimelineArrow(UiComponent):
@@ -423,7 +439,8 @@ class RowNumberCell(UiComponent):
             render_queue.appendleft([RECT, outline, x, y, display.row_labels_w, display.row_h, 2])
             if cell_text is not None:
                 offs = 5 if track_step_index < 100 else 1
-                render_queue.appendleft([TEXT, "tracker_row_label_font", text_color, cell_text, x + offs, y + 2, 0])
+                render_queue.appendleft([TEXT, "tracker_row_label_font", text_color, cell_text, x + offs,
+                                         y + display.cell_y_offset, 0])
             return 1
         return 0
 

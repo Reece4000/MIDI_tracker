@@ -6,118 +6,141 @@ from src.ui_components.view_component import ViewComponent
 from src.ui_components.gui_elements import TimelineCell, TimelineArrow
 
 
-class TimelineTrack(ViewComponent):
+class TimelinePage(ViewComponent):
     def __init__(self, tracker):
         super().__init__(tracker)
-        self.num_rows = display.num_timeline_rows
-        self.type = None
-        self.timeline_arrows = None
-        self.cells = None
 
-        self.tracker.event_bus.subscribe(events.TIMELINE_STATE_CHANGED, self.flag_state_change)
+        self.page_active_coords = display.timeline_page_border
+        self.previous_page = PATTERN
+        self.curr_page = 0
+        self.paste_presses = 0
+        self.pages = [PhraseTrack(parent_page=self, y=display.timeline_area_y + 3),
+                      SongTrack(parent_page=self, y=display.timeline_area_y + 36)]
+
+        for event in [events.TIMELINE_STATE_CHANGED, events.ALL_STATES_CHANGED]:
+            self.tracker.event_bus.subscribe(event, self.flag_state_change)
+
+    def flag_state_change(self, *args):
+        self.state_changed = True
 
     def move_cursor(self, x, y, expand_selection=False):
-        prev_y = self.cursor_y
+        self.paste_presses = 0
         if y != 0:
-            max_len = constants.timeline_length - 1
-            self.cursor_y = max(0, min(max_len, self.cursor_y + y))
-
-        if expand_selection:
-            self.cursor_h += self.cursor_y - prev_y
-        else:
-            self.cursor_h = 0
-
-        self.tracker.event_bus.publish(events.EDITOR_WINDOW_STATE_CHANGED)
+            self.cursor_y = max(0, min(1, self.cursor_y + y))
+            self.switch_timeline_page(self.cursor_y)
+        if x != 0:
+            self.pages[self.curr_page].move_cursor(x, 0, expand_selection)
         self.flag_state_change()
+        self.update_view()
 
-    def draw_arrows(self, render_queue):
-        assert self.timeline_arrows is not None
-        timeline_length = self.tracker.timeline_length
-        mid = display.num_timeline_rows // 2 - 1
-        for i, arrow in enumerate(self.timeline_arrows):
-            cond = (mid < self.cursor_y < timeline_length - mid)
-            if arrow.dirtied([cond]):
-                col = themeing.CURSOR_COLOR if cond else themeing.TIMELINE_BG
-                render_queue.appendleft([POLYGON, col, arrow.points, 1])
+    def handle_select(self):
+        self.pages[self.curr_page].handle_select()
 
-    def get_timeline_step_state(self, y):
-        assert self.type is not None
-        mid = display.num_timeline_rows // 2 - 1
-        cursor_pos = self.cursor_y
-        offset = -min(mid, self.cursor_y) if self.cursor_y <= mid else -mid
-        if self.cursor_y > constants.timeline_length - mid:
+    def handle_delete(self, remove_steps):
+        self.pages[self.curr_page].handle_delete(remove_steps)
+
+    def handle_insert(self):
+        self.pages[self.curr_page].handle_insert()
+
+    def handle_param_adjust(self, increment, axis=False):
+        self.pages[self.curr_page].handle_param_adjust(increment, axis)
+
+    def move_in_place(self, x, y):
+        self.pages[self.curr_page].move_in_place(x, y)
+
+    def handle_copy(self):
+        self.paste_presses = 0
+        self.pages[self.curr_page].handle_copy()
+
+    def handle_paste(self):
+        self.pages[self.curr_page].handle_paste()
+        self.paste_presses += 1
+
+    def switch_timeline_page(self, page_index):
+        self.paste_presses = 0
+        self.pages[self.curr_page].active = False
+        self.pages[page_index].active = True
+        self.curr_page = page_index  # want phrase on top
+        self.flag_state_change()
+        self.tracker.event_bus.publish(events.TIMELINE_STATE_CHANGED)
+
+    def initialise_view(self):
+        render_queue = self.tracker.renderer.render_queue
+        for i, page in enumerate(self.pages):
+            outline_color = themeing.BLACK
+            color = themeing.SONG_LABEL_COLOR if i == 1 else themeing.PHRASE_LABEL_COLOR
+            x = self.page_active_coords[0] + 3
+            render_queue.appendleft([RECT, color, x - 2, page.y_pos - 4, 865, 28, 0])
+            render_queue.appendleft([RECT, outline_color, x - 2, page.y_pos - 4, 865, 28, 1])
+            text_x = x + 32 - len(page.type) * 4
+            render_queue.appendleft([TEXT, "tracker_timeline_font", themeing.WHITE,
+                                     page.type.upper(), text_x, page.y_pos + 1, 0])
+
+    def get_timeline_step_state(self, song, phrase, page, x):
+        mid = page.num_cells - 1
+        cursor_pos = page.cursor_x
+        offset = -min(mid, page.cursor_x) if page.cursor_x <= mid else -mid
+        if page.cursor_x > constants.timeline_length - mid:
             offset -= mid - (constants.timeline_length - cursor_pos)
 
-        step_index = cursor_pos + y + offset
-        if self.type == "song":
-            step_num = self.tracker.song_pool[step_index]
+        step_index = cursor_pos + x + offset
+        if page.type == "song":
+            step_num = song[step_index]
         else:
-            step_num = self.tracker.cursor_phrase[step_index]
+            if phrase is not None:
+                step_num = phrase[step_index]
+            else:
+                step_num = None
 
         if step_index < 0 or step_index >= constants.timeline_length:
             text, text_color = None, None
         else:
-            if self.type == "song":
+            if page.type == "song":
                 condition = (step_index == self.tracker.song_playhead and self.tracker.is_playing)
-            elif self.type == "phrase":
+            elif page.type == "phrase":
                 condition = (step_index == self.tracker.phrase_playhead and self.tracker.is_playing and
-                             self.tracker.pages[SONG].cursor_y == self.tracker.song_playhead)
+                             self.pages[TIMELINE_SONG].cursor_x == self.tracker.song_playhead)
             else:
                 condition = False
 
             text_color = themeing.PLAYHEAD_COLOR if condition else themeing.WHITE
             text = f"{step_num:0>3}" if step_num is not None else ' - - '
 
-        bg = themeing.BG_SHADOW if not y % 2 else themeing.TIMELINE_BG_HL
-        if self.active and step_index == cursor_pos:
-            cursor = themeing.CURSOR_COLOR
-        elif step_index == cursor_pos:
-            cursor = themeing.CURSOR_COLOR_ALT
-        else:
-            cursor = themeing.BLACK
+        bg, cursor = page.cells[x].get_colors(step_index, cursor_pos, x, page.active)
 
         return [text, text_color, cursor, bg]
 
-    def draw_track(self, render_queue):
-        assert self.cells is not None
-
-        for y in range(self.num_rows):
-            cell = self.cells[y]
-            state = self.get_timeline_step_state(y)
-
-            if cell.dirtied(state):
-                text, text_color, cursor, bg = state
-                x, y = cell.x_screen, cell.y_screen
-                w, h = display.timeline_cell_w, display.timeline_cell_h
-                render_queue.appendleft([RECT, cursor, x - 2, y + 1, w, h, 1])
-                render_queue.appendleft([RECT, bg, x, y + 3, w - 4, h - 4, 0])
-                if text is not None:
-                    render_queue.appendleft([TEXT, "tracker_timeline_font", text_color, text, x + 1, y + 2, 0])
-    
-    def handle_param_adjust(self, increment, axis=False):
-        self.tracker.event_bus.publish(events.ALL_STATES_CHANGED)
-        self.state_changed = True
-
     def update_view(self):
-        if not self.state_changed:
-            return
-
         render_queue = self.tracker.renderer.render_queue
-        self.draw_arrows(render_queue)
-        self.draw_track(render_queue)
+        song = self.tracker.song
+        phrase = self.tracker.get_selected_phrase()
+        for page in self.pages:
+            for x in range(page.num_cells):
+                cell = page.cells[x]
+                state = self.get_timeline_step_state(song, phrase, page, x)
 
-        self.state_changed = False
+                if cell.dirtied(state):
+                    cell.draw(render_queue)
+
+
+class TimelineTrack:
+    def __init__(self, parent_page, y):
+        self.parent_page = parent_page
+        self.tracker = parent_page.tracker
+        self.y_pos = y
+        self.num_cells = display.num_timeline_cells
+        self.cursor_x = 0
+        self.cursor_w = 0
+        self.type = None
+        self.clipboard = []
+        self.active = False
 
 
 class SongTrack(TimelineTrack):
-    def __init__(self, tracker):
-        super().__init__(tracker)
-        self.page_active_coords = display.song_page_border
+    def __init__(self, parent_page, y):
+        super().__init__(parent_page, y)
         self.type = "song"
-        self.cells = [TimelineCell(10, y) for y in range(display.num_timeline_rows)]
-        self.timeline_arrows = [TimelineArrow(display.song_arrow_upper),
-                                TimelineArrow(display.song_arrow_lower)]
-        self.update_view()
+        self.cells = [TimelineCell(33, y, self.type) for y in range(self.num_cells)]
 
     def handle_select(self):
         pass
@@ -129,13 +152,13 @@ class SongTrack(TimelineTrack):
         pass
 
     def handle_param_adjust(self, increment, axis=False):
-        super().handle_param_adjust(increment)
-        self.tracker.update_song_step(self.cursor_y, increment)
+        self.tracker.update_song_step(self.cursor_x, increment)
+        self.tracker.event_bus.publish(events.ALL_STATES_CHANGED)
 
     def move_cursor(self, x, y, expand_selection=False):
-        self.tracker.event_bus.publish(events.ALL_STATES_CHANGED)
-        super().move_cursor(x, y, expand_selection)
-        self.tracker.set_current_phrase(self.tracker.song_pool[self.cursor_y])
+        prev_x = self.cursor_x
+        self.cursor_x = max(0, min(constants.timeline_length - 1, self.cursor_x + x))
+        self.cursor_w += self.cursor_x - prev_x if expand_selection else 0
 
     def move_in_place(self, x, y):
         pass
@@ -151,16 +174,11 @@ class SongTrack(TimelineTrack):
 
 
 class PhraseTrack(TimelineTrack):
-    def __init__(self, tracker):
-        super().__init__(tracker)
-        self.page_active_coords = display.phrase_page_border
+    def __init__(self, parent_page, y):
+        super().__init__(parent_page, y)
         self.type = "phrase"
-        self.cells = [TimelineCell(47, y) for y in range(display.num_timeline_rows)]
-        self.timeline_arrows = [TimelineArrow(display.phrase_arrow_upper),
-                                TimelineArrow(display.phrase_arrow_lower)]
+        self.cells = [TimelineCell(0, y, self.type) for y in range(self.num_cells)]
 
-        self.update_view()
-        
     def handle_select(self):
         pass
 
@@ -170,23 +188,32 @@ class PhraseTrack(TimelineTrack):
     def handle_insert(self):
         pass
 
-    def handle_param_adjust(self, increment):
-        super().handle_param_adjust(increment)
-        self.tracker.update_phrase_step(self.cursor_y, increment)
+    def handle_param_adjust(self, increment, axis=False):
+        self.tracker.update_phrase_step(self.cursor_x, increment)
 
     def move_cursor(self, x, y, expand_selection=False):
+        print(self.tracker.get_song_cursor())
+        print(self.tracker.song[self.tracker.get_song_cursor()])
+        prev_x = self.cursor_x
+        self.cursor_x = max(0, min(constants.timeline_length - 1, self.cursor_x + x))
+        self.cursor_w += self.cursor_x - prev_x if expand_selection else 0
         self.tracker.event_bus.publish(events.ALL_STATES_CHANGED)
-        super().move_cursor(x, y, expand_selection)
-        self.tracker.set_cursor_pattern(self.tracker.cursor_phrase[self.cursor_y])
+        print(self.tracker.get_song_cursor())
+        print(self.tracker.song[self.tracker.get_song_cursor()])
 
     def move_in_place(self, x, y):
         pass
 
     def handle_copy(self):
-        pass
+        self.clipboard = [self.tracker.get_selected_pattern(num=True)]
 
     def handle_paste(self):
-        pass
+        if self.parent_page.paste_presses == 0:
+            self.tracker.update_phrase_step(self.cursor_x, self.clipboard[0])
+        elif self.parent_page.paste_presses == 1:
+            clipboard_pattern = self.tracker.pattern_pool[self.clipboard[0]]
+            new_pattern_num = self.tracker.clone_pattern(clipboard_pattern)
+            self.tracker.update_phrase_step(self.cursor_x, new_pattern_num)
 
-    def handle_duplicate(self):
-        pass
+        self.tracker.event_bus.publish(events.ALL_STATES_CHANGED)
+

@@ -12,7 +12,7 @@ class PhrasePage(MenuPage):
         self.title_bg_unselected = themeing.PHRASE_TITLE_UNSELECTED
 
     def update_view(self, tracker, editor_active):
-        phrase_num = tracker.song_pool[tracker.song_playhead]
+        phrase_num = tracker.song[tracker.song_playhead]
         self.title = f"{self.name} {phrase_num}"
         super().update_view(tracker, editor_active)
 

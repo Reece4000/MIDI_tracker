@@ -34,7 +34,8 @@ class Renderer:
             "tracker_timeline_font": pygame.font.Font(r'resources\fonts\pixel\PixelOperatorSC-Bold.ttf', 16),
             "param_display": pygame.font.Font(r'resources\fonts\Code 7x5.ttf', 8),
             "zoom_font": pygame.font.Font(r'resources\fonts\pixel\PixelOperatorMono-Bold.ttf', 32),
-            "textbox_font": pygame.font.Font(r'resources\fonts\pixel\PixelOperatorMono-Bold.ttf', 16)
+            "textbox_font": pygame.font.Font(r'resources\fonts\pixel\PixelOperatorMono-Bold.ttf', 16),
+            "textbox_small": pygame.font.Font(r'resources\fonts\pixel\PixelOperatorMono.ttf', 16),
         }
 
         self.text_cache = {}

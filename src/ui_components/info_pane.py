@@ -14,15 +14,15 @@ class InfoPane:
 
     def initialise(self):
         render_queue = self.tracker.renderer.render_queue
-        render_queue.extendleft(self.pattern_info_text.initialise())
+        #render_queue.extendleft(self.pattern_info_text.initialise())
         render_queue.extendleft(self.play_pause.initialise())
-        render_queue.extendleft(self.options_button.initialise())
+        #render_queue.extendleft(self.options_button.initialise())
 
     def update_view(self):
         play_pause = self.play_pause.check_for_state_change(self.tracker.midi_handler.pulse, self.tracker.is_playing)
-        opt = self.options_button.check_for_state_change(self.tracker.mouse_x, self.tracker.mouse_y)
-        pattern_text = self.pattern_info_text.check_for_state_change(self.tracker.cursor_pattern)
+        #opt = self.options_button.check_for_state_change(self.tracker.mouse_x, self.tracker.mouse_y)
+        #pattern_text = self.pattern_info_text.check_for_state_change(self.tracker.cursor_pattern)
 
-        for e in [play_pause, pattern_text, opt]:
+        for e in [play_pause]:  # , pattern_text, opt]:
             if e:
                 self.tracker.renderer.render_queue.extendleft(e)

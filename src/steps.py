@@ -1,11 +1,14 @@
 from config import constants, themeing
 from src.utils import midi_to_note, chord_id, join_notes, timing_decorator
-
+import copy
 
 class Step:
     def __init__(self):
         self.type = None
         self.state_changed = True
+
+    def clone(self):
+        return self
 
     def has_data(self):
         return False
@@ -34,6 +37,14 @@ class MidiStep(Step):
     def flag_state_change(self):
         self.cached_display_text = None
         self.state_changed = True
+
+    def clone(self):
+        new_step = MidiStep()
+        new_step.notes = self.notes.copy()
+        new_step.velocities = self.velocities.copy()
+        new_step.components = self.components.copy()
+        new_step.ccs = self.ccs.copy()
+        return new_step
 
     def add_note(self, index, note, vel):
         self.notes[index] = note
@@ -157,6 +168,11 @@ class MasterStep(Step):
     def clear(self):
         self.components = [None] * 4
 
+    def clone(self):
+        new_step = MasterStep()
+        new_step.components = self.components.copy()
+        return new_step
+
     def add_component(self, component):
         for i in range(4):
             if self.components[i] is None:
@@ -178,3 +194,6 @@ class MasterStep(Step):
 
     def load_from_json(self, data):
         pass
+
+
+EMPTY_MIDI_STEP = MidiStep()

@@ -30,7 +30,8 @@ class MasterTrack(ViewComponent):
 
     def move_in_place(self, x, y):
         xpos, ypos, w, h = self.get_selection_coords()
-        track = self.tracker.cursor_pattern.master_track
+        selected_pattern = self.tracker.get_selected_pattern()
+        track = selected_pattern.master_track
 
         if y > 0:  # Moving down
             add = (-self.cursor_h if self.cursor_h < 0 else 0)
@@ -66,8 +67,9 @@ class MasterTrack(ViewComponent):
 
     def move_cursor(self, x, y, expand_selection=False):
         prev_y = self.cursor_y
+        selected_pattern = self.tracker.get_selected_pattern()
         if y != 0:
-            max_len = self.tracker.cursor_pattern.master_track.length - 1
+            max_len = selected_pattern.master_track.length - 1
             self.cursor_y = max(0, min(max_len, self.cursor_y + y))
 
         if expand_selection and not (self.tracker.is_playing and self.tracker.follow_playhead):
@@ -128,7 +130,7 @@ class MasterTrack(ViewComponent):
                 cell.check_for_state_change(pattern, step_index, track, 0, playhead_step, render_queue)
 
     def update_view(self):
-        pattern = self.tracker.cursor_pattern
+        pattern = self.tracker.get_selected_pattern()
         render_queue = self.tracker.renderer.render_queue
 
         self.update_row_number_view(pattern, render_queue)

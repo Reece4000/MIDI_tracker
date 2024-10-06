@@ -15,9 +15,8 @@ from src.ui_components.info_pane import InfoPane
 from src.ui_components.pattern_view import PatternEditor
 from src.ui_components.master_view import MasterTrack
 from src.ui_components.editor_window import EditorWindow
-from src.ui_components.timeline_tracks import SongTrack, PhraseTrack
+from src.ui_components.timeline_tracks import TimelinePage
 from src.ui_components.gui_elements import RowNumberCell
-
 
 
 # going for component based architecture with elements of MVC
@@ -45,26 +44,26 @@ class Tracker:
         self.renderer.initialise()
         self.input_handler = InputHandler(self)
         self.midi_handler = MidiHandler()
+        self.clock = Clock(bpm=constants.start_bpm, callback=self.tick)
+        self._tick_mutex = Lock()
+        self.ticks = 0
+
         self.track_count = constants.track_count
         self.timeline_length = constants.timeline_length
-        self.song_pool = [0] + [None for _ in range(self.timeline_length - 1)]
+
+        self.song = [0] + [None for _ in range(self.timeline_length - 1)]
+
         self.phrase_pool = {None: [None for _ in range(self.timeline_length)],
                             0: [0] + [None for _ in range(self.timeline_length - 1)]}
         self.pattern_pool = {None: None,
                              0: Pattern(num=0, length=constants.start_len, lpb=constants.start_lpb,
                                         bpm=constants.start_bpm, swing=constants.start_swing, tracker=self)}
-        self.song_playhead = 0
+
         self.phrase_playhead = 0
-        self.cursor_pattern = self.pattern_pool[0]
-        self.cursor_phrase = self.phrase_pool[0]
-        self.playing_pattern = self.cursor_pattern
-        self.on_playing_pattern = True
+        self.song_playhead = 0
+
         self.is_playing = False
         self.follow_playhead = False
-
-        self.clock = Clock(bpm=self.cursor_pattern.bpm, callback=self.tick)
-        self._tick_mutex = Lock()
-        self.ticks = 0
 
         self.mouse_x = 0
         self.mouse_y = 0
@@ -91,8 +90,7 @@ class Tracker:
         row_number_cells = [RowNumberCell(y) for y in range(display.visible_rows)]  # shared between pattern and master
         self.info_pane = InfoPane(self)
 
-        self.pages[SONG] = SongTrack(self)
-        self.pages[PHRASE] = PhraseTrack(self)
+        self.pages[TIMELINE] = TimelinePage(self)
         self.pages[MASTER] = MasterTrack(self, row_number_cells)
         self.pages[PATTERN] = PatternEditor(self, row_number_cells)
         self.pages[EDITOR] = EditorWindow(self)
@@ -100,6 +98,12 @@ class Tracker:
         # some ui components need to share state vars
         self.pages[MASTER].pattern_view = self.pages[PATTERN]
         self.pages[PATTERN].master_track_view = self.pages[MASTER]
+
+        self.pages[TIMELINE].initialise_view()
+        self.pages[TIMELINE].update_view()
+        for i, page in self.pages.items():
+            if i != PATTERN:
+                self.pages[PATTERN].toggle_active()
 
     def running_loop(self):
         try:
@@ -149,20 +153,42 @@ class Tracker:
     def update_channel_ccs(self, channel, cc_index, new_cc):
         self.channel_ccs[channel][cc_index] = new_cc
 
-    def update_pattern_parameters(self):
-        playing_phrase_num = self.song_pool[self.song_playhead]
+    def get_song_cursor(self):
+        return self.pages[TIMELINE].pages[TIMELINE_SONG].cursor_x
+
+    def get_phrase_cursor(self):
+        return self.pages[TIMELINE].pages[TIMELINE_PHRASE].cursor_x
+
+    def get_selected_phrase(self):
+        return self.add_phrase(self.song[self.get_song_cursor()])
+
+    def get_selected_pattern(self, num=False):
+        selected_phrase = self.get_selected_phrase()
+        phrase_cursor = self.get_phrase_cursor()
+        selected_pattern = self.add_pattern(selected_phrase[phrase_cursor])
+        return selected_pattern.num if num else selected_pattern
+
+    def get_playing_phrase(self):
+        return self.phrase_pool[self.song[self.song_playhead]]
+
+    def get_playing_pattern(self, num=False):
+        playing_phrase_num = self.song[self.song_playhead]
         playing_pattern_num = self.phrase_pool[playing_phrase_num][self.phrase_playhead]
-        if playing_pattern_num is not None:
-            playing_pattern = self.pattern_pool[playing_pattern_num]
-            self.playing_pattern = playing_pattern
-            self.clock.set_bpm(self.playing_pattern.bpm)
+        return playing_pattern_num if num else self.pattern_pool[playing_pattern_num]
 
+    def on_playing_pattern(self):
+        return self.get_selected_pattern(num=True) == self.get_playing_pattern(num=True)
+
+    def update_timeline_cursors(self):
+        self.song_playhead = self.pages[TIMELINE].pages[TIMELINE_SONG].cursor_x
+        self.phrase_playhead = self.pages[TIMELINE].pages[TIMELINE_PHRASE].cursor_x
+
+    def update_pattern_parameters(self):
+        playing_pattern = self.get_playing_pattern()
+        if playing_pattern is not None:
+            self.clock.set_bpm(playing_pattern.bpm)
             if self.follow_playhead:
-                self.cursor_pattern = self.playing_pattern
-                self.cursor_phrase = self.phrase_pool[playing_phrase_num]
-
-            self.on_playing_pattern = (self.playing_pattern == self.cursor_pattern)
-
+                self.update_timeline_cursors()
         else:
             self.is_playing = False
 
@@ -171,49 +197,69 @@ class Tracker:
         self.ticks = 0
         self.midi_handler.all_notes_off()
         self.midi_handler.send_midi_stop()
-        self.pages[SONG].flag_state_change()
-        self.pages[PHRASE].flag_state_change()
+        self.pages[TIMELINE].flag_state_change()
 
     def start_playback(self):
         print('\n########### Starting playback ###########\n')
-        for i, track in enumerate(self.playing_pattern.midi_tracks):
+        for i, track in enumerate(self.get_playing_pattern().midi_tracks):
             track.is_reversed = False
-        self.set_playing_pattern_to_cursor()
+
+        self.song_playhead, self.phrase_playhead = self.get_song_cursor(), self.get_phrase_cursor()
+
         self.update_pattern_parameters()
         self.reset_track_playheads()
         self.midi_handler.send_midi_start()
         self.is_playing = True
-        self.pages[SONG].flag_state_change()
-        self.pages[PHRASE].flag_state_change()
+        self.pages[TIMELINE].flag_state_change()
+
+        print(self.get_playing_pattern().num)
+
+    def toggle_playback(self):
+        if self.is_playing:
+            self.stop_playback()
+        elif self.get_selected_pattern() is not None:
+            self.start_playback()
+
+    def set_playing_pattern_to_cursor(self):
+        if self.get_selected_pattern() is not None and not self.on_playing_pattern():
+            self.song_playhead = self.pages[TIMELINE].pages[TIMELINE_SONG].cursor_x
+            self.phrase_playhead = self.pages[TIMELINE].pages[TIMELINE_PHRASE].cursor_x
 
     def process_master_components(self):
-        master_components = self.playing_pattern.master_track.get_components()
+        playing_pattern = self.get_playing_pattern()
+        master_components = playing_pattern.master_track.get_components()
 
         for component in master_components:
             if component is not None:
                 if component[0] == 'REV':
-                    self.playing_pattern.reverse_tracks()
+                    playing_pattern.reverse_tracks()
                 elif component[0] == 'SNC':
-                    self.playing_pattern.synchronise_playheads()
+                    playing_pattern.synchronise_playheads()
 
     def update_song_playhead(self):
         next_step = self.song_playhead + 1
-        if next_step < len(self.song_pool) and self.song_pool[next_step] is not None:
+        if next_step < len(self.song) and self.song[next_step] is not None:
             self.song_playhead = next_step
             self.phrase_playhead = 0
 
             # handle case where sequencer is playing and no patterns in phrase track
-            playing_phrase_num = self.song_pool[self.song_playhead]
+            playing_phrase_num = self.song[self.song_playhead]
             playing_pattern_num = self.phrase_pool[playing_phrase_num][self.phrase_playhead]
             if playing_pattern_num not in self.pattern_pool.keys():
                 self.song_playhead = 0
         else:
-            self.song_playhead = 0
+            while self.song[self.song_playhead] is not None:
+                self.song_playhead -= 1
+                if self.song_playhead == 0:
+                    break
+            if self.song[self.song_playhead] is None:
+                self.song_playhead += 1
+
             self.phrase_playhead = 0
 
     def update_phrase_playhead(self):
         next_step = self.phrase_playhead + 1
-        current_phrase_num = self.song_pool[self.song_playhead]
+        current_phrase_num = self.song[self.song_playhead]
         current_patterns = self.phrase_pool[current_phrase_num]
         if next_step < len(current_patterns) and current_patterns[next_step] is not None:
             self.phrase_playhead = next_step
@@ -223,19 +269,19 @@ class Tracker:
         self.update_pattern_parameters()
 
     def update_track_playheads(self):
+        playing_pattern = self.get_playing_pattern()
         ticks = []
         chk_components = False
-        if self.playing_pattern.master_track.tick():
+        if playing_pattern.master_track.tick():
             chk_components = True
-            if self.playing_pattern.master_track.ticks == 0:
-                self.pages[SONG].flag_state_change()
-                self.pages[PHRASE].flag_state_change()
+            if playing_pattern.master_track.ticks == 0:
+                self.pages[TIMELINE].flag_state_change()
                 self.update_phrase_playhead()
                 self.update_pattern_parameters()
                 self.reset_track_playheads()
                 return
 
-        for track in self.playing_pattern.midi_tracks:
+        for track in playing_pattern.midi_tracks:
             ticks.append(track.tick())
 
         if chk_components:
@@ -243,11 +289,12 @@ class Tracker:
 
         for i, tick in enumerate(ticks):
             if tick:
-                self.playing_pattern.midi_tracks[i].play_step()
+                playing_pattern.midi_tracks[i].play_step()
         return
 
     def reset_track_playheads(self):
-        tracks = self.playing_pattern.tracks
+        playing_pattern = self.get_playing_pattern()
+        tracks = playing_pattern.tracks
         for track in tracks:
             track.reset()
         for track in tracks:
@@ -256,95 +303,49 @@ class Tracker:
             else:
                 track.play_step()
 
-    def update_playing_pattern(self):
-        playing_phrase_num = self.song_pool[self.song_playhead]
-        playing_pattern_num = self.phrase_pool[playing_phrase_num][self.phrase_playhead]
-        self.playing_pattern = self.pattern_pool[playing_pattern_num]
-        self.event_bus.publish(events.TIMELINE_STATE_CHANGED)
+    @timing_decorator
+    def clone_pattern(self, pattern):
+        if pattern is None:
+            return
+        new_pattern_num = None
+        # find next unused pattern number
+        for i in range(constants.max_patterns):
+            if i not in self.pattern_pool.keys():
+                new_pattern_num = i
+                break
 
-    def is_cursor_on_playing_pattern(self):
-        song_y = self.pages[SONG].cursor_y
-        phrase_y = self.pages[PHRASE].cursor_y
-        cursor_pattern_num = self.phrase_pool[self.song_pool[song_y]][phrase_y]
-        if cursor_pattern_num is None:
-            return False
-        playing_phrase_num = self.song_pool[self.song_playhead]
-        playing_pattern_num = self.phrase_pool[playing_phrase_num][self.phrase_playhead]
-        if playing_pattern_num in self.pattern_pool.keys():
-            return cursor_pattern_num == playing_pattern_num
-        return False
+        if new_pattern_num is not None:
+            new_pattern = pattern.clone(new_pattern_num)
+            self.pattern_pool[new_pattern_num] = new_pattern
+
+        return new_pattern_num
 
     def add_pattern(self, pattern_num):
         if pattern_num not in self.pattern_pool.keys():
-            new = Pattern(pattern_num, self.last_length, self.last_lpb, self.last_bpm, self.last_swing, tracker=self)
+            new = Pattern(pattern_num, self.last_length, self.last_lpb,
+                          self.last_bpm, self.last_swing, tracker=self)
             self.pattern_pool[pattern_num] = new
+
+        return self.pattern_pool[pattern_num]
 
     def add_phrase(self, phrase_num):
         if phrase_num not in self.phrase_pool.keys():
             self.phrase_pool[phrase_num] = [None for _ in range(1000)]
 
-    def get_next_pattern(self):
-        song_y = self.pages[SONG].cursor_y
-        phrase_y = self.pages[PHRASE].cursor_y
-        cursor_pattern_num = self.phrase_pool[self.song_pool[song_y]][phrase_y]
-        if cursor_pattern_num is None:
-            return None
-        next_phrase_cursor = (phrase_y + 1) % constants.timeline_length
-        next_pattern_num = self.phrase_pool[self.song_pool[song_y]][next_phrase_cursor]
-        return self.pattern_pool[next_pattern_num]
-
-    def set_playing_pattern(self, pattern_num):
-        if pattern_num is not None:
-            self.playing_pattern = self.pattern_pool[pattern_num]
-            playing_phrase_num = self.song_pool[self.song_playhead]
-            playing_pattern_num = self.phrase_pool[playing_phrase_num][self.phrase_playhead]
-            if playing_pattern_num is not None:
-                self.playing_pattern = self.pattern_pool[playing_pattern_num]
-                if self.follow_playhead:
-                    self.cursor_pattern = self.playing_pattern
-                    self.cursor_phrase = self.phrase_pool[playing_phrase_num]
-            else:
-                self.is_playing = False
-
-    def set_cursor_pattern(self, pattern_num):
-        self.cursor_pattern = None
-        if pattern_num is not None:
-            self.add_pattern(pattern_num)
-            self.cursor_pattern = self.pattern_pool[pattern_num]
-
-    def set_playing_pattern_to_cursor(self):
-        song_y = self.pages[SONG].cursor_y
-        phrase_y = self.pages[PHRASE].cursor_y
-        cursor_pattern_num = self.phrase_pool[self.song_pool[song_y]][phrase_y]
-        if cursor_pattern_num is not None and not self.is_cursor_on_playing_pattern():
-            self.song_playhead = song_y
-            self.phrase_playhead = phrase_y
-            self.set_playing_pattern(cursor_pattern_num)
-
-        print(self.playing_pattern.num)
-
-    def set_current_phrase(self, phrase_num):
-        self.add_phrase(phrase_num)
-        self.cursor_phrase = self.phrase_pool[phrase_num]
-        if self.cursor_phrase[0] is not None:
-            self.cursor_pattern = self.pattern_pool[self.cursor_phrase[0]]
-        else:
-            self.cursor_pattern = None
+        return self.phrase_pool[phrase_num]
 
     def update_song_step(self, index, value):
-        new_val = calculate_timeline_increment(self.song_pool[index], value)
-        self.song_pool[index] = new_val
+        new_val = calculate_timeline_increment(self.song[index], value)
+        self.song[index] = new_val
         if new_val is not None:
             self.add_phrase(new_val)
-            self.set_current_phrase(new_val)
-            self.set_cursor_pattern(self.cursor_phrase[0])
-        else:
-            self.set_current_phrase(None)
 
     def update_phrase_step(self, index, value):
-        new_val = calculate_timeline_increment(self.cursor_phrase[index], value)
-        self.cursor_phrase[index] = new_val
-        self.set_cursor_pattern(new_val)
+        song_cursor = self.get_song_cursor()
+        new_val = calculate_timeline_increment(self.phrase_pool[self.song[song_cursor]][index], value)
+        self.phrase_pool[self.song[song_cursor]][index] = new_val
+        if new_val is not None:
+            self.add_pattern(new_val)
 
     def get_selected_step(self, track=None):
         if track is None:
@@ -357,10 +358,11 @@ class Tracker:
         return track.steps[self.pages[PATTERN].cursor_y]
 
     def get_selected_track(self):
-        if self.cursor_pattern is None:
+        selected_pattern = self.get_selected_pattern()
+        if selected_pattern is None:
             return None
         try:
-            return self.cursor_pattern.midi_tracks[self.pages[PATTERN].cursor_x]
+            return selected_pattern.midi_tracks[self.pages[PATTERN].cursor_x]
         except IndexError:
             return None
 
@@ -401,26 +403,45 @@ class Tracker:
         if self.pages[EDITOR].active:
             prev_page = self.pages[EDITOR].previous_page
             if prev_page is None:
-                self.page_switch(direction=None, page_num=PATTERN)
+                self.page_switch(page_num=PATTERN)
             else:
-                self.page_switch(direction=None, page_num=prev_page)
+                self.page_switch(page_num=prev_page)
         else:
             self.pages[EDITOR].previous_page = self.page
-            self.page_switch(direction=None, page_num=EDITOR)
+            self.page_switch(page_num=EDITOR)
 
-    def page_switch(self, direction, page_num=None):
+    def toggle_timeline_view(self):
+        if self.pages[TIMELINE].active:
+            prev_page = self.pages[TIMELINE].previous_page
+            if prev_page is None:
+                self.page_switch(PATTERN)
+            else:
+                self.page_switch(prev_page)
+        else:
+            self.pages[TIMELINE].previous_page = self.page
+            self.page_switch(TIMELINE)
+
+    def page_switch(self, page_num=None):
+
         if page_num is None:
-            self.page = (self.page + direction) % (len(self.pages) - 1)
+            self.page = PATTERN if self.page == MASTER else MASTER  # (self.page + direction) % (len(self.pages) - 1)
         else:
             self.page = page_num
 
         self.pages[PATTERN].update_y_anchor(self.page)
 
         for i, view in self.pages.items():
-            if view is None:
-                continue
             if (i != self.page and view.active) or (i == self.page and not view.active):
                 view.toggle_active()
+
+        for i, page in self.pages.items():
+            print("tracker:", i, page.active)
+            if i == EDITOR:
+                for j, view in enumerate(page.pages):
+                    print("editor: ", j, view.active)
+            elif i == TIMELINE:
+                for j, view in enumerate(page.pages):
+                    print("timeline", j, view.active)
 
     def handle_events(self):
         input_return = self.input_handler.check_for_events(current_time=perf_counter())
@@ -428,9 +449,10 @@ class Tracker:
             self.running = False
 
     def stop_preview(self):
+        selected_pattern = self.get_selected_pattern()
         if not self.is_playing:
             if self.page == PATTERN and self.pages[PATTERN].cursor_x > 0:
-                track = self.cursor_pattern.tracks[self.pages[PATTERN].cursor_x]
+                track = selected_pattern.tracks[self.pages[PATTERN].cursor_x]
                 self.midi_handler.all_notes_off(track.channel)
 
     def options_menu(self, is_active):
@@ -439,17 +461,10 @@ class Tracker:
     def reset(self):
         pass
 
-    def toggle_playback(self):
-        if self.is_playing:
-            self.stop_playback()
-        else:
-            if self.cursor_pattern is not None:
-                self.set_playing_pattern_to_cursor()
-                self.start_playback()
-
     def toggle_mute(self):
+        selected_pattern = self.get_selected_pattern()
         for index in self.pages[PATTERN].selected_tracks:
-            track = self.cursor_pattern.midi_tracks[index]
+            track = selected_pattern.midi_tracks[index]
             if not track.is_master:
                 track.handle_mute(send_note_offs=self.on_playing_pattern)
 
@@ -526,7 +541,7 @@ class Tracker:
     # then we want to update the current pattern to the new pattern number
     
     def insert_pattern(self):
-        phrase_cursor = self.pages[PHRASE].cursor_y
+        phrase_cursor = self.pages[TIMELINE].pages[TIMELINE_PHRASE].cursor_x
         if phrase_cursor + 1 >= self.timeline_length:
             return
 
@@ -536,20 +551,20 @@ class Tracker:
                 while self.cursor_phrase[phrase_cursor] is not None:
                     phrase_cursor += 1
                 self.update_phrase_step(phrase_cursor, i + 1)
-                self.pages[PHRASE].cursor_y = phrase_cursor
+                self.pages[TIMELINE].pages[TIMELINE_PHRASE].cursor_x = phrase_cursor
                 break
     
     def insert_phrase(self):
-        song_cursor = self.pages[SONG].cursor_y
-        phrase_cursor = self.pages[PHRASE].cursor_y
+        song_cursor = self.pages[TIMELINE].pages[TIMELINE_SONG].cursor_x
+        phrase_cursor = self.pages[TIMELINE].pages[TIMELINE_PHRASE].cursor_x
         
         if song_cursor + 1 >= self.timeline_length:
                 return
         for i in range(self.timeline_length):
             if i not in self.phrase_pool.keys():
-                while self.song_pool[song_cursor] is not None:
+                while self.song[song_cursor] is not None:
                     song_cursor += 1
-                self.sequencer.update_song_step(song_cursor, i + 1)
+                self.update_song_step(song_cursor, i + 1)
                 break
 
     def jump_page(self, opt):
@@ -570,26 +585,6 @@ class Tracker:
                     self.state.set_cursor_pattern(self.state.cursor_phrase[self.state.phrase_cursor["y"]])
         """
 
-    def update_timeline_step(self, val):
-        pass
-        """
-        if self.state.page == 0:
-            self.state.update_song_step(self.state.song_cursor, val)
-        elif self.state.page == 1:
-            if self.state.song_track[self.state.song_cursor] is not None:
-                self.state.update_phrase_step(self.state.phrase_cursor["y"], val)
-        """
-
-    def activate_detail_window(self):
-        pass
-        """
-        if not self.state.page == 4:
-            self.state.page = 4
-        else:
-            self.step_detail_window_widget.handle_select(self.state.get_selected_step())
-        """
-
-
     def master_seek(self):
         print("master seek, to do")
 
@@ -606,31 +601,31 @@ class Tracker:
         pass
 
     def adjust_length(self, increment):
+        selected_pattern = self.get_selected_pattern()
         pattern_view = self.pages[PATTERN]
         selected_tracks = pattern_view.get_selected_tracks()
-        if self.cursor_pattern is not None:
+        if selected_pattern is not None:
             for x in selected_tracks:
-                self.cursor_pattern.midi_tracks[x].adjust_length(increment)
+                selected_pattern.midi_tracks[x].adjust_length(increment)
                 self.event_bus.publish(events.PATTERN_TRACK_STATE_CHANGED, x)
             # self.sequencer.update_sequencer_params()
 
     def adjust_lpb(self, increment):
+        selected_pattern = self.get_selected_pattern()
         pattern_view = self.pages[PATTERN]
         selected_tracks = pattern_view.get_selected_tracks()
-        if self.cursor_pattern is not None:
+        if selected_pattern is not None:
             for x in selected_tracks:
-                self.cursor_pattern.midi_tracks[x].adjust_lpb(increment)
+                selected_pattern.midi_tracks[x].adjust_lpb(increment)
                 self.event_bus.publish(events.PATTERN_TRACK_STATE_CHANGED, x)
 
     def adjust_bpm(self, increment):
-        if self.cursor_pattern is not None:
-            new_bpm = min(max(1, self.cursor_pattern.bpm + increment), 1000)
-            self.cursor_pattern.bpm = new_bpm
+        selected_pattern = self.get_selected_pattern()
+        if selected_pattern is not None:
+            new_bpm = min(max(1, selected_pattern.bpm + increment), 1000)
+            selected_pattern.bpm = new_bpm
             self.update_pattern_parameters()
             self.last_bpm = new_bpm
-
-
-
 
     ### mouse methods ###
     def screen_pos_to_pattern_pos(self, x, y):

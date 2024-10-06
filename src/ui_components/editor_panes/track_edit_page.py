@@ -1,5 +1,6 @@
 from src.ui_components.editor_panes.menu_page import MenuPage
 from config.render_map import *
+from config.pages import *
 from config import themeing, scales
 from config import events
 from src.utils import get_increment
@@ -48,9 +49,9 @@ class TrackPage(MenuPage):
 
     def update_view(self, tracker, editor_active):
         curr_track = tracker.get_selected_track()
-        midi_channel = str(curr_track.channel + 1)
 
-        if self.active:
+        if self.active and curr_track is not None:
+            midi_channel = str(curr_track.channel + 1)
             length = str(curr_track.length)
             lpb = str(curr_track.lpb)
             if curr_track.swing >= 0:
@@ -80,7 +81,7 @@ class TrackPage(MenuPage):
                                      [TEXT, "textbox_font", text_color, item,
                                       x_position, self.y_positions[i] - 1, 0]]
 
-        self.title = f"{self.name} {midi_channel}"
+        self.title = f"{self.name} {tracker.pages[PATTERN].cursor_x + 1}"
         super().update_view(tracker, editor_active)
 
         self.check_redraw(tracker.renderer.render_queue)

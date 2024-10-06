@@ -4,10 +4,10 @@ from config import display, themeing, events
 from config.render_map import *
 from config.pages import *
 
-from src.ui_components.editor_panes.step_page import StepPage
-from src.ui_components.editor_panes.track_page import TrackPage
-from src.ui_components.editor_panes.pattern_page import PatternPage
-from src.ui_components.editor_panes.phrase_page import PhrasePage
+from src.ui_components.editor_panes.step_edit_page import StepPage
+from src.ui_components.editor_panes.track_edit_page import TrackPage
+from src.ui_components.editor_panes.pattern_edit_page import PatternPage
+from src.ui_components.editor_panes.phrase_edit_page import PhrasePage
 
 
 class EditorWindow(ViewComponent):

@@ -25,6 +25,9 @@ class Track:
     def reset(self) -> None:
         self.ticks = 0
 
+    def clone(self):
+        pass
+
     def adjust_channel(self, increment: int) -> None:
         pass
 
@@ -137,14 +140,17 @@ class Track:
 
 
 class MidiTrack(Track):
-    def __init__(self, channel: int, length: int, lpb: int, pattern) -> None:
+    def __init__(self, channel: int, length: int, lpb: int, pattern, steps=None) -> None:
         super().__init__(length, lpb, pattern)
         self.last_notes_played: list = [None, None, None, None]
         self.is_muted: bool = False
         self.is_soloed: bool = False
         self.channel: int = channel
         self.is_reversed: bool = False
-        self.steps: list = [MidiStep() for _ in range(length)]
+        if steps is None:
+            self.steps: list = [MidiStep() for _ in range(length)]
+        else:
+            self.steps = steps
         self.transpose: int = 0
         self.scale = PATTERN
         # so we have 24 ticks per step at 4 lpb
@@ -158,6 +164,14 @@ class MidiTrack(Track):
     def reset(self) -> None:
         super().reset()
         self.is_reversed = False
+
+    def clone(self):
+        new_steps = [step.clone() for step in self.steps]
+        new_track = MidiTrack(self.channel, self.length, self.lpb, self.pattern, new_steps)
+        new_track.transpose = self.transpose
+        new_track.scale = self.scale
+        new_track.is_reversed = self.is_reversed
+        return new_track
 
     def adjust_channel(self, increment: int) -> None:
         self.midi_handler.all_notes_off(self.channel)
@@ -273,13 +287,22 @@ class MidiTrack(Track):
 
 
 class MasterTrack(Track):
-    def __init__(self, length: int, lpb: int, pattern) -> None:
+    def __init__(self, length: int, lpb: int, pattern, steps=None) -> None:
         super().__init__(length, lpb, pattern)
         self.is_master: bool = True
-        self.steps: list = [MasterStep() for _ in range(length)]
+        if steps is None:
+            self.steps: list = [MasterStep() for _ in range(length)]
+        else:
+            self.steps = steps
+
+    def clone(self):
+        new_steps = [step.clone() for step in self.steps]
+        new_track = MasterTrack(self.length, self.lpb, self.pattern, new_steps)
+        return new_track
 
     def clear_step(self, position: int) -> None:
         self.steps[position]: MasterStep = MasterStep()
 
     def get_components(self) -> list:
         return self.steps[self.get_step_pos()].components
+
