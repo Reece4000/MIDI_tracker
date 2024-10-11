@@ -16,7 +16,7 @@ class TimelinePage(ViewComponent):
         self.pages = [PhraseTrack(parent_page=self, y=display.timeline_area_y + 16),
                       SongTrack(parent_page=self, y=display.timeline_area_y + 64)]
 
-        for event in [events.TIMELINE_STATE_CHANGED, events.ALL_STATES_CHANGED]:
+        for event in {events.TIMELINE_STATE_CHANGED, events.ALL_STATES_CHANGED}:
             self.tracker.event_bus.subscribe(event, self.flag_state_change)
 
     def toggle_active(self):
@@ -45,8 +45,9 @@ class TimelinePage(ViewComponent):
     def handle_insert(self):
         self.pages[self.cursor_y].handle_insert()
 
-    def handle_param_adjust(self, increment, axis=False):
-        self.pages[self.cursor_y].handle_param_adjust(increment, axis)
+    def handle_param_adjust(self, increment, alt=False):
+        self.pages[self.cursor_y].handle_param_adjust(increment, alt)
+        self.tracker.event_bus.publish(events.ALL_STATES_CHANGED)
 
     def move_in_place(self, x, y):
         self.pages[self.cursor_y].move_in_place(x, y)
@@ -135,7 +136,7 @@ class TimelineTrack:
         self.cursor_x = 0
         self.cursor_w = 0
         self.type = None
-        self.clipboard = []
+        self.clipboard = [None]
         self.active = False
 
 
@@ -146,7 +147,7 @@ class SongTrack(TimelineTrack):
         self.cells = [TimelineCell(61, y, self.type) for y in range(self.num_cells)]
 
     def handle_select(self):
-        pass
+        self.tracker.event_bus.publish(events.ALL_STATES_CHANGED)
 
     def handle_delete(self, remove_steps):
         pass
@@ -156,7 +157,6 @@ class SongTrack(TimelineTrack):
 
     def handle_param_adjust(self, increment, axis=False):
         self.tracker.adjust_song_step(self.cursor_x, increment)
-        self.tracker.event_bus.publish(events.ALL_STATES_CHANGED)
 
     def move_cursor(self, x, y, expand_selection=False):
         prev_x = self.cursor_x
@@ -187,16 +187,18 @@ class PhraseTrack(TimelineTrack):
         selected_phrase = self.tracker.get_selected_phrase()
         if selected_phrase[self.cursor_x] is None:
             selected_phrase[self.cursor_x] = self.last_phrase_num
+            self.tracker.event_bus.publish(events.ALL_STATES_CHANGED)
         else:
             self.last_phrase_num = selected_phrase[self.cursor_x]
 
     def handle_delete(self, remove_steps):
-        pass
+        selected_phrase = self.tracker.get_selected_phrase()
+        selected_phrase[self.cursor_x] = None
 
     def handle_insert(self):
         pass
 
-    def handle_param_adjust(self, increment, axis=False):
+    def handle_param_adjust(self, increment, alt=False):
         num = self.tracker.adjust_phrase_step(self.cursor_x, increment)
         if num is not None:
             self.last_phrase_num = num

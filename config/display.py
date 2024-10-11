@@ -3,7 +3,7 @@ from config.render_map import *
 from config.themeing import *
 from src.utils import get_polygon_coords
 
-FPS = 10
+FPS = 60
 
 # 1280 x 720 #
 left_pane = [RECT, TIMELINE_BG, 0, 0, 150, 720, 0]
@@ -71,12 +71,13 @@ cell_text_offs = 2
 
 play_x, play_y = 15, 12
 
-
 detail_window_replace_bg_h = 580
 detail_window_title_h = 36
 
-timeline_page_border = (timeline_width + 12, timeline_area_y - 4, 864, 98, 1)
-song_page_border = (4, timeline_area_y-1, timeline_cell_w+4, timeline_area_height+2, 1)
-phrase_page_border = (41, timeline_area_y-1, timeline_cell_w+4, timeline_area_height+2, 1)
-master_page_border = (timeline_width + 12, 1, 93, menu_height + pattern_area_height + 3, 1)
-pattern_page_border = (timeline_width + 145, 1, 730, menu_height + pattern_area_height + 3, 1)
+current_row_display = (timeline_width + 110, 6)
+
+timeline_page_border = (timeline_width + 12, timeline_area_y - 4, 864, 98, 2)
+song_page_border = (4, timeline_area_y-1, timeline_cell_w+4, timeline_area_height+2, 2)
+phrase_page_border = (41, timeline_area_y-1, timeline_cell_w+4, timeline_area_height+2, 2)
+master_page_border = (timeline_width + 12, 1, 93, menu_height + pattern_area_height + 3, 2)
+pattern_page_border = (timeline_width + 145, 1, 730, menu_height + pattern_area_height + 3, 2)

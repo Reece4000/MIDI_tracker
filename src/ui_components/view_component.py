@@ -6,9 +6,9 @@ class ViewComponent:
         self.tracker = tracker
         self.page_active_coords = None
         self.cursor_x = self.cursor_y = self.cursor_w = self.cursor_h = 0
-        self.active = True
+        self.active = False
         self.state_changed = True
-        self.clipboard = []
+        self.clipboard = [None]
         self.selected_rows = self.get_selected_rows()
         self.selected_tracks = self.get_selected_tracks()
         self.tracker.event_bus.subscribe(events.ALL_STATES_CHANGED, self.flag_state_change)
@@ -23,6 +23,9 @@ class ViewComponent:
     def flag_state_change(self, *args):
         self.selected_rows = self.get_selected_rows()
         self.state_changed = True
+
+    def keyboard_insert(self, key):
+        pass
 
     def handle_select(self):
         pass

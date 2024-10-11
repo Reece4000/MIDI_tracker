@@ -45,15 +45,20 @@ class Renderer:
         self.render_cycle = 0
 
         # https://www.iconpacks.net
-        pygame.display.set_icon(pygame.image.load(r"resources/black-gameplay-symbol-20172.svg"))
+        pygame.display.set_icon(pygame.image.load(r"resources\icons\black-gameplay-symbol-20172.svg"))
         pygame.display.set_caption("GAMT")
 
         self.tracker.event_bus.subscribe(events.FULLSCREEN, self.toggle_fullscreen)
         self.tracker.event_bus.subscribe(events.QUIT, self.quit)
 
     @staticmethod
-    def load_image(path):
-        return pygame.image.load(path).convert()
+    def load_image(path, scale=None, alpha=None):
+        if scale:
+            return pygame.transform.scale(pygame.image.load(path).convert_alpha(), scale)
+        elif alpha:
+            return pygame.image.load(path).convert_alpha()
+        else:
+            return pygame.image.load(path).convert()
 
     def quit(self):
         self.render_queue = None
@@ -108,18 +113,6 @@ class Renderer:
                 except:
                     print("error adding rect: ", color, x, y, w, h, b)
 
-            elif e[0] == TEXT:
-                font, color, text, x, y, antialias = e[1], e[2], e[3], e[4], e[5], e[6]
-                key = (font, color, text, x, y)
-
-                if key not in self.text_cache:
-                    rendered_text = self.fonts[font].render(text, antialias, color)
-                    self.text_cache[key] = rendered_text
-                else:
-                    rendered_text = self.text_cache[key]
-
-                self.screen.blit(rendered_text, (x, y))
-
             elif e[0] == CIRCLE or e[0] == CIRCLE_NO_DIRTY:
                 color, center, radius, width = e[1], e[2], e[3], e[4]
                 c = pygame.draw.circle(self.screen, color, center, radius, width)
@@ -131,6 +124,22 @@ class Renderer:
                 p = pygame.draw.polygon(self.screen, color, points, b)
                 if e[0] == POLYGON:
                     self.dirty_rects.append(p)
+
+            elif e[0] == TEXT:
+                font, color, text, x, y, antialias = e[1], e[2], e[3], e[4], e[5], e[6]
+                key = (font, color, text, x, y)
+
+                if key not in self.text_cache:
+                    try:
+                        rendered_text = self.fonts[font].render(text, antialias, color)
+                    except:
+                        print("error rendering text: ", font, color, text, x, y)
+                        return
+                    self.text_cache[key] = rendered_text
+                else:
+                    rendered_text = self.text_cache[key]
+
+                self.screen.blit(rendered_text, (x, y))
 
             elif e[0] == "user input":
                 pass
@@ -144,15 +153,6 @@ class Renderer:
     def initialise(self):
         # main bg
         self.render_queue.appendleft([RECT, themeing.BG_PTN, 0, 0, self.screen_w, self.screen_h, 0])
-        # timeline bg
-        self.render_queue.appendleft([RECT, themeing.TIMELINE_BG, -1, 0, display.timeline_width, self.screen_h, 0])
-
-        grad = 90
-        r, g, b = themeing.TIMELINE_BG
-        for i in range(grad):
-            block, color = i * 3, (r + grad, g + grad, b + grad)
-            self.render_queue.appendleft([RECT, color, 0, block - 5, display.timeline_width - 1, block, 0])
-            r, g, b = r - 1, g - 1, b - 1
 
     def get_text_width(self, font, color, text, x, y):
         key = (font, color, text, x, y)

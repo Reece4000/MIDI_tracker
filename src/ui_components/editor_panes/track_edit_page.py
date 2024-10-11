@@ -29,13 +29,14 @@ class TrackPage(MenuPage):
     def handle_param_adjust(self, increment, axis=False):
         tracker = self.tracker
         curr_track = tracker.get_selected_track()
+        track_index = tracker.pages[PATTERN].cursor_x
         if self.active:
             if self.cursor_y == 0:
                 curr_track.adjust_channel(get_increment(increment, "channel"))
             if self.cursor_y == 1:
-                tracker.adjust_length(get_increment(increment, "length"))
+                curr_track.adjust_length(get_increment(increment, "length"))
             elif self.cursor_y == 2:
-                tracker.adjust_lpb(get_increment(increment, "lpb"))
+                curr_track.adjust_lpb(get_increment(increment, "lpb"))
             elif self.cursor_y == 3:
                 curr_track.adjust_swing(get_increment(increment, "swing"))
             elif self.cursor_y == 4:
@@ -46,6 +47,7 @@ class TrackPage(MenuPage):
                 curr_track.handle_mute(send_note_offs=tracker.is_playing)
             elif self.cursor_y == 7:
                 curr_track.handle_solo()
+            tracker.pages[PATTERN].state_changed[track_index] = 1
 
     def update_view(self, tracker, editor_active):
         curr_track = tracker.get_selected_track()
@@ -72,7 +74,8 @@ class TrackPage(MenuPage):
                 assert i < 8
                 x_position = int((self.textbox_x + 40) - (len(item) * 4))
                 if i == self.cursor_y:
-                    text_color, bg_color = themeing.BLACK, themeing.CURSOR_COLOR
+                    text_color = themeing.BLACK
+                    bg_color = themeing.CURSOR_COLOR if editor_active else themeing.CURSOR_COLOR_ALT
                 else:
                     text_color, bg_color = themeing.WHITE, self.bg
 

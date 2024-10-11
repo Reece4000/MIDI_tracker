@@ -3,6 +3,8 @@ from rtmidi.midiconstants import CONTROL_CHANGE, NOTE_ON, NOTE_OFF
 from rtmidi.midiconstants import TIMING_CLOCK, SONG_START, SONG_STOP
 from src.utils import timing_decorator
 from config import constants
+from time import perf_counter
+
 
 
 class MidiHandler:
@@ -15,6 +17,7 @@ class MidiHandler:
         self.midi_name = self.initialise_midi()
         self.last_notes_played = [[None, None, None, None] for _ in range(16)]
         self.pulse = 0
+        self.timings = {}
 
     def initialise_midi(self):
         available_ports = self.midi_out.get_ports()
@@ -30,6 +33,7 @@ class MidiHandler:
         self.pulse += 1
         if not self.pulse % 4:
             self.midi_out.send_message([TIMING_CLOCK])
+            self.timings[self.pulse] = perf_counter()
 
     def send_midi_start(self):
         self.midi_out.send_message([SONG_START])

@@ -1,5 +1,5 @@
 from config.pages import *
-from config import constants, display, events
+from config import constants, display, events, themeing, render_map
 from config.constants import FOLLOW_MASTER, FOLLOW_PATTERN
 from src.ui_components.gui_elements import PatternCell, TrackBox
 from src.ui_components.view_component import ViewComponent
@@ -25,6 +25,8 @@ class PatternEditor(ViewComponent):
         self.cells = [[PatternCell(x, y, parent=self) for y in range(display.visible_rows)] for x in range(constants.track_count)]
         self.row_number_cells = row_number_cells
 
+        self.seek_jump = 8
+
         self.tracker.event_bus.subscribe(events.NOTE_PLAYED, self.note_played)
         self.tracker.event_bus.subscribe(events.PATTERN_TRACK_STATE_CHANGED, self.flag_track_state_change)
         self.tracker.event_bus.subscribe(events.ALL_STATES_CHANGED, self.flag_state_change)
@@ -32,7 +34,6 @@ class PatternEditor(ViewComponent):
     def toggle_active(self):
         super().toggle_active()
         self.selected_tracks = self.get_selected_tracks()
-        self.flag_state_change()
 
     def note_played(self, track_index):
         self.track_boxes[track_index].highlight = 255
@@ -50,14 +51,30 @@ class PatternEditor(ViewComponent):
         if not self.master_track_view.state_changed:
             self.master_track_view.state_changed = True
 
+    def keyboard_insert(self, key):
+        track = self.tracker.get_selected_track()
+        step = self.tracker.get_selected_step()
+
+        note = key if key == -1 else key + (self.tracker.octave_mod * 12)
+        for pos in range(4):
+            step.update_note(pos, note if pos == 0 else None)
+            step.update_velocity(pos, self.tracker.last_vel if pos == 0 else None)
+        self.tracker.last_note = note
+        self.tracker.preview_step()
+        self.tracker.event_bus.publish(events.EDITOR_WINDOW_STATE_CHANGED)
+
     def handle_select(self):
         selected_pattern = self.tracker.get_selected_pattern()
+        if selected_pattern is None:
+            return
         step = selected_pattern.midi_tracks[self.cursor_x].steps[self.cursor_y]
         x, y, w, h = self.get_selection_coords()
         if w == 0 and h == 0:
-            if step.notes == constants.empty:
+            if step.empty or step.notes == constants.empty:
                 self.add_note(step, 0)
             else:
+                if step.empty:
+                    return
                 if step.notes[0] != -1 and step.notes[0] is not None:
                     self.tracker.last_note, self.tracker.last_vel = step.notes[0], step.velocities[0]
             self.tracker.preview_step()
@@ -115,16 +132,18 @@ class PatternEditor(ViewComponent):
             track.length = len(track.steps)
             track.length_in_ticks = track.length * (96 // track.lpb)
 
-    def handle_param_adjust(self, increment, axis=False):
-        if not axis:
+    def handle_param_adjust(self, increment, alt=False):
+        if not alt:
             self.pattern_transpose(increment)
         else:
-            self.update_vel(increment, preview=False)
+            self.update_vel(increment)
 
     def update_vel(self, increment, preview=True):
         if increment == 0:
             return
         selected_pattern = self.tracker.get_selected_pattern()
+        if selected_pattern is None:
+            return
         x, y, w, h = self.get_selection_coords()
         for track in range(w + 1):
             for row in range(h + 1):
@@ -144,6 +163,8 @@ class PatternEditor(ViewComponent):
 
     def pattern_transpose(self, increment):
         selected_pattern = self.tracker.get_selected_pattern()
+        if selected_pattern is None:
+            return
         n = self.tracker.last_note
         x, y, w, h = self.get_selection_coords()
         for track_index in range(w + 1):
@@ -236,13 +257,27 @@ class PatternEditor(ViewComponent):
     def handle_copy(self):
         selected_pattern = self.tracker.get_selected_pattern()
         x, y, w, h = self.get_selection_coords()
-        self.clipboard = [
-            [
-                selected_pattern.midi_tracks[x + track].steps[y + row]
-                for row in range(h + 1)
-            ]
-            for track in range(w + 1)
-        ]
+
+        max_track = len(selected_pattern.midi_tracks) - 1
+        self.clipboard = []
+
+        for track in range(w + 1):
+            if x + track > max_track:
+                self.clipboard.append([None] * (h + 1))
+                continue
+
+            midi_track = selected_pattern.midi_tracks[x + track]
+            max_step = len(midi_track.steps) - 1
+            track_steps = []
+
+            for row in range(h + 1):
+                if y + row <= max_step:
+                    step = midi_track.steps[y + row]
+                else:
+                    step = None
+                track_steps.append(step)
+
+            self.clipboard.append(track_steps)
 
     def handle_paste(self):
         selected_pattern = self.tracker.get_selected_pattern()
@@ -254,19 +289,19 @@ class PatternEditor(ViewComponent):
         for x in range(max_x):
             track = selected_pattern.midi_tracks[self.cursor_x + x]
             for y in range(max_y):
-                step = track.steps[self.cursor_y + y]
                 clipboard_step = self.clipboard[x][y]
-
-                # Copy notes, velocities, and components directly
-                step.notes[:] = clipboard_step.notes
-                step.velocities[:] = clipboard_step.velocities
-                step.components[:] = clipboard_step.components
-                step.flag_state_change()
+                if clipboard_step is None:
+                    continue
+                if self.cursor_y + y < track.length:
+                    step = track.steps[self.cursor_y + y]
+                    step.copy_from(clipboard_step)
+                    step.flag_state_change()
 
     def move_cursor(self, x, y, expand_selection=False):
         selected_pattern = self.tracker.get_selected_pattern()
         if selected_pattern is None:
             return
+
         prev_x, prev_y = self.cursor_x, self.cursor_y
         if x != 0:
             self.cursor_x = max(min(constants.track_count - 1, self.cursor_x + x), 0)
@@ -284,6 +319,9 @@ class PatternEditor(ViewComponent):
 
         self.flag_state_change()
         self.tracker.event_bus.publish(events.EDITOR_WINDOW_STATE_CHANGED)
+        pattern_edit_window = self.tracker.pages[EDITOR].pages[PATTERN_EDIT]
+        if pattern_edit_window.cursor_x != self.cursor_x:
+            pattern_edit_window.cursor_x = self.cursor_x
 
     def get_selection_coords(self):
         xs, ys = self.cursor_w, self.cursor_h
@@ -401,7 +439,7 @@ class PatternEditor(ViewComponent):
             self.y_anchor = self.master_track_view.y_anchor = FOLLOW_MASTER
 
     def update_row_number_view(self, pattern, y_cursor, render_queue):
-        if not self.active:
+        if not self.y_anchor == FOLLOW_PATTERN:
             return
         playhead_step = None
         n_steps = 0
@@ -413,7 +451,7 @@ class PatternEditor(ViewComponent):
                 print(e, "Attribute error, def render_row_numbers()", pattern)
             master_track = pattern.master_track
             master_len = master_track.length
-            if self.tracker.on_playing_pattern:
+            if self.tracker.on_playing_pattern():
                 playhead_step = master_track.step_pos
 
         for row_number_cell in self.row_number_cells:

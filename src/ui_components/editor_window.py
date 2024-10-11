@@ -4,6 +4,7 @@ from config import display, themeing, events
 from config.render_map import *
 from config.pages import *
 
+from src.ui_components.editor_panes.master_step_edit_page import MasterStepPage
 from src.ui_components.editor_panes.step_edit_page import StepPage
 from src.ui_components.editor_panes.track_edit_page import TrackPage
 from src.ui_components.editor_panes.pattern_edit_page import PatternPage
@@ -21,17 +22,40 @@ class EditorWindow(ViewComponent):
         self.w = 250
         self.h = 600
 
-        self.tracker.event_bus.subscribe(events.EDITOR_WINDOW_STATE_CHANGED, self.flag_state_change)
-
         self.curr_page = 0
         page_h_closed = 35
-        self.pages = [StepPage(self.x_pos, 0, self.tracker),
+
+        self.master_step_page = MasterStepPage(self.x_pos, 0, self.tracker)
+        self.midi_step_page = StepPage(self.x_pos, 0, self.tracker)
+
+        self.pages = [self.midi_step_page,
                       TrackPage(self.x_pos, page_h_closed, self.tracker),
                       PatternPage(self.x_pos, page_h_closed * 2, self.tracker),
                       PhrasePage(self.x_pos, page_h_closed * 3, self.tracker)]
         self.pages[self.curr_page].active = 1
         self.open_page(self.curr_page)
         self.key_hints = KeyHints()
+
+        self.tracker.event_bus.subscribe(events.EDITOR_WINDOW_STATE_CHANGED, self.flag_state_change)
+        self.tracker.event_bus.subscribe(events.ON_PATTERN_TRACK, self.set_step_page_to_pattern)
+        self.tracker.event_bus.subscribe(events.ON_MASTER_TRACK, self.set_step_page_to_master)
+
+    def update_step_page(self):
+        if self.curr_page == STEP_EDIT:
+            self.open_page(STEP_EDIT)
+            self.flag_state_change()
+
+    def set_step_page_to_pattern(self):
+        self.pages[STEP_EDIT].active = 0
+        self.pages[STEP_EDIT] = self.midi_step_page
+        self.pages[STEP_EDIT].previous_render = {}
+        self.update_step_page()
+
+    def set_step_page_to_master(self):
+        self.pages[STEP_EDIT].active = 0
+        self.pages[STEP_EDIT] = self.master_step_page
+        self.pages[STEP_EDIT].previous_render = {}
+        self.update_step_page()
 
     def open_page(self, page_index, increment=None):
         if increment is not None:
@@ -55,6 +79,14 @@ class EditorWindow(ViewComponent):
             page.update_view(self.tracker, self.active)
 
         self.curr_page = page_index
+
+    def seek(self, xy, expand_selection=False):
+        pass  # make this so that it moves to the next table in whatever page & direction
+        """
+        y = xy[1]
+        if y != 0:
+            self.open_page(None, y)
+        """
 
     def handle_select(self):
         self.pages[self.curr_page].handle_select()
@@ -88,6 +120,11 @@ class EditorWindow(ViewComponent):
     def move_cursor(self, x, y, expand_selection=False):
         self.pages[self.curr_page].move_cursor(x, y)
         self.flag_state_change()
+
+    def move_alt_cursor(self, x, y):
+        self.tracker.pages[self.previous_page].move_cursor(x, y)
+        if self.previous_page in {MASTER, PATTERN}:
+            self.tracker.pages[self.previous_page].flag_state_change()
 
     def render_key_hints(self):
         render_queue = self.tracker.renderer.render_queue

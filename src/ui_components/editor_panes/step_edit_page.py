@@ -1,8 +1,9 @@
 from src.ui_components.editor_panes.menu_page import MenuPage
 from src.utils import midi_to_note, get_increment
 from src.steps import EMPTY_MIDI_STEP
+from config import events
 from config.render_map import *
-from config.pages import PATTERN
+from config.pages import *
 from config import themeing
 
 
@@ -10,6 +11,7 @@ class StepPage(MenuPage):
     def __init__(self, x, y, tracker):
         super().__init__(x, y, "STEP", tracker)
         self.clipboard = {"note": None, "component": None, "value": None}
+        self.master_step_image = self.tracker.renderer.load_image(r"resources\editor_panes\master_step_page.png")
         self.image = self.tracker.renderer.load_image(r"resources\editor_panes\step_page.png")
         self.title_bg_selected = themeing.STEP_TITLE_SELECTED
         self.title_bg_unselected = themeing.STEP_TITLE_UNSELECTED
@@ -38,6 +40,12 @@ class StepPage(MenuPage):
 
     def handle_select(self):
         step = self.tracker.get_selected_step()
+        if step is None:
+            return
+
+        if step.empty:
+            step.initialise()
+
         if self.cursor_y < 4:
             if self.cursor_x == 0:
                 if step.notes[self.cursor_y] is None:
@@ -49,7 +57,9 @@ class StepPage(MenuPage):
                 if step.velocities[self.cursor_y] is not None:
                     if step.notes[self.cursor_y] != -1:
                         self.tracker.last_vel = step.velocities[self.cursor_y]
+            self.tracker.preview_step()
         elif self.cursor_y >= 8:
+            # set channel ccs from track edit page
             """
             if self.cursor_x in [0, 2]:
                 ccs = self.tracker.channel_ccs[sel_track_index]
@@ -84,10 +94,11 @@ class StepPage(MenuPage):
 
         elif self.cursor_y >= 8:
             cc_index = self.cursor_y - 8 if self.cursor_x == 0 else self.cursor_y
-            if step.ccs[cc_index] > 0:
-                step.update_cc(cc_index, 0)
-            else:
-                step.update_cc(cc_index, None)
+            if step.ccs[cc_index] is not None:
+                if step.ccs[cc_index] > 0:
+                    step.update_cc(cc_index, 0)
+                else:
+                    step.update_cc(cc_index, None)
 
     def handle_insert(self):
         pass
@@ -162,7 +173,9 @@ class StepPage(MenuPage):
             self.tracker.preview_step(notes_only=True)
 
     def draw_notes(self, step, sel_table, is_active):
-        for i, note in enumerate(step.notes):
+        for i in range(4):
+            note = None if step.empty else step.notes[i]
+            velocity = None if step.empty else step.velocities[i]
 
             note_text = midi_to_note(note) if note is not None else "---"
 
@@ -181,7 +194,7 @@ class StepPage(MenuPage):
             if note_text == "OFF":
                 vel_text = ""
             else:
-                vel_text = f'{step.velocities[i]: >3}' if step.velocities[i] is not None else "---"
+                vel_text = "---" if velocity is None else f'{velocity: >3}'
 
             if sel_table == 0 and self.cursor_y == i and self.cursor_x == 1:
                 text_col = themeing.BLACK
@@ -193,13 +206,14 @@ class StepPage(MenuPage):
                                       [TEXT, "textbox_font", text_col, vel_text, self.vel_x + 9, self.notes_y[i], 0]]
 
     def draw_components(self, step, sel_table, is_active):
-        for i, component in enumerate(step.components):
+        for i in range(4):
+            component = None if step.empty else step.components[i]
             if component is None:
                 component_text = component_p1_text = component_p2_text = "---"
             else:
-                component_text = f"{component[i][0]}"
-                component_p1_text = f"{component[i][1]}"
-                component_p2_text = f"{component[i][2]}"
+                component_text = f"{component}"
+                component_p1_text = f"{step.component_x_vals[i]}"
+                component_p2_text = f"{step.component_y_vals[i]}"
 
             if sel_table == 1 and self.cursor_y == i + 4 and self.cursor_x == 0:
                 text_col = themeing.BLACK
@@ -242,10 +256,15 @@ class StepPage(MenuPage):
             return text_col, bg_col
 
         for i in range(8):
+            if step.empty:
+                cc_left = cc_right = None
+            else:
+                cc_left, cc_right = step.ccs[i], step.ccs[i + 8]
+
             cc_control_text_left = f"{channel_ccs[i]:0>3}" if channel_ccs is not None else "---"
-            cc_value_text_left = f"{step.ccs[i]:0>3}" if step.ccs[i] is not None else "---"
+            cc_value_text_left = f"{cc_left:0>3}" if cc_left is not None else "---"
             cc_control_text_right = f"{channel_ccs[i + 8]:0>3}" if channel_ccs is not None else "---"
-            cc_value_text_right = f"{step.ccs[i + 8]:0>3}" if step.ccs[i + 8] is not None else "---"
+            cc_value_text_right = f"{cc_right:0>3}" if cc_right is not None else "---"
 
             text_col, bg_col = themeing.CC_CONTROL_COLOR, self.bg
             self.to_render[(i + 8, 0)] = [[RECT, bg_col, self.cc_x1 - 3, self.cc_y[i],

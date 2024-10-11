@@ -9,9 +9,26 @@ import traceback
 import pstats
 import psutil
 
+PROFILE = True
+RUN_ASYNC = True
+TRACE_MALLOC = False
+SET_PRIORITY = False
 
 os.chdir(os.path.abspath(os.path.dirname(__file__)))
 os.environ["SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS"] = "1"
+
+if SET_PRIORITY:
+    isWindows = True
+    try:
+        sys.getwindowsversion()
+    except AttributeError:
+        isWindows = False
+
+    p = psutil.Process(os.getpid())
+    if not isWindows:
+        p.nice(10)
+    else:
+        p.nice(psutil.REALTIME_PRIORITY_CLASS)
 
 
 class EventBus:
@@ -31,19 +48,6 @@ class EventBus:
                 else:
                     handler(data)
 
-"""
-isWindows = True
-try:
-    sys.getwindowsversion()
-except AttributeError:
-    isWindows = False
-
-p = psutil.Process(os.getpid())
-if not isWindows:
-    p.nice(10)
-else:
-    p.nice(psutil.REALTIME_PRIORITY_CLASS)
-"""
 
 def print_timings():
     print("\nAverage execution times per method:")
@@ -52,24 +56,20 @@ def print_timings():
         print(f"{method_name}: {avg_time * 1000000:.2f} µs")
 
 
-trace_memory = False
-
-
 def main():
-    if trace_memory:
+    if PROFILE:
         tracemalloc.start()
-    try:
-        event_bus = EventBus()
-        tracker = Tracker(event_bus)
-    except Exception as e:
-        input(f"Error: {e}")
-        sys.exit()
 
-    asyncio.run(tracker.running_loop())
+    event_bus = EventBus()
+    tracker = Tracker(event_bus)
 
-    print_timings()
+    if RUN_ASYNC:
+        asyncio.run(tracker.running_loop())
+    else:
+        tracker.running_loop_non_async()
 
-    if trace_memory:
+    if PROFILE:
+        print_timings()
         snapshot = tracemalloc.take_snapshot()
         top_stats = snapshot.statistics('lineno')
         print("Memory allocation, top 10 lines")
@@ -81,14 +81,16 @@ def main():
 
 if __name__ == "__main__":
     try:
-        # Profile the `main` function and save the stats in memory
-        cProfile.run('main()', 'main_stats')
-
-        # Load the profile stats and sort by cumulative time
-        p = pstats.Stats('main_stats')
-        p.strip_dirs().sort_stats('cumtime').print_stats()
+        if not PROFILE:
+            main()
+        else:
+            # Profile the `main` function and save the stats in memory
+            cProfile.run('main()', 'main_stats')
+            p = pstats.Stats('main_stats')
+            # Load the profile stats and sort by cumulative time
+            p.strip_dirs().sort_stats('cumtime').print_stats()
 
     except Exception as e:
         print(traceback.format_exc())
 
-    input("Press enter to exit")
+    # input("Press enter to exit")

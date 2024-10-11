@@ -1,5 +1,6 @@
-from config import display, events
-from config.constants import FOLLOW_PATTERN
+from config.pages import *
+from config import display, events, render_map, themeing
+from config.constants import FOLLOW_PATTERN, FOLLOW_MASTER, master_component_mapping
 from src.ui_components.gui_elements import PatternCell, TrackBox
 from src.ui_components.view_component import ViewComponent
 from src.ui_components.pattern_view import get_pattern_index
@@ -21,12 +22,17 @@ class MasterTrack(ViewComponent):
         self.y_anchor = FOLLOW_PATTERN
         self.row_number_cells = row_number_cells
         self.selected_tracks = [0]
+        self.master_playhead_pos = None
         self.selected_rows = self.get_selected_rows()
         self.pattern_view = None  # need to share some state variables with the pattern
 
     def flag_state_change(self):
         super().flag_state_change()
+        self.master_playhead_pos = None
         self.pattern_view.state_changed = [1, 1, 1, 1, 1, 1, 1, 1]
+
+    def keyboard_insert(self, key):
+        pass
 
     def move_in_place(self, x, y):
         xpos, ypos, w, h = self.get_selection_coords()
@@ -85,7 +91,7 @@ class MasterTrack(ViewComponent):
         self.tracker.event_bus.publish(events.EDITOR_WINDOW_STATE_CHANGED)
 
     def update_row_number_view(self, pattern, render_queue):
-        if not self.active:
+        if not self.y_anchor == FOLLOW_MASTER:
             return
         playhead_step = None
         n_steps = 0
@@ -96,7 +102,7 @@ class MasterTrack(ViewComponent):
             except AttributeError as e:
                 print(e, "Attribute error, def render_row_numbers()", pattern)
             master_len = pattern.master_track.length
-            if self.tracker.on_playing_pattern:
+            if self.tracker.on_playing_pattern():
                 playhead_step = pattern.master_track.step_pos
 
         for row_number_cell in self.row_number_cells:
@@ -131,8 +137,19 @@ class MasterTrack(ViewComponent):
                 cell.check_for_state_change(pattern, step_index, track, 0, playhead_step, render_queue)
 
     def update_view(self):
-        pattern = self.tracker.get_selected_pattern()
         render_queue = self.tracker.renderer.render_queue
+        pattern = self.tracker.get_selected_pattern()
+        master_playhead_pos = self.tracker.get_playing_pattern().master_track.step_pos
+        if self.master_playhead_pos != master_playhead_pos:
+            ol = (120, 60, 0) if not self.tracker.on_playing_pattern() else themeing.PLAYHEAD_COLOR
+            x, y = display.current_row_display
+            self.master_playhead_pos = master_playhead_pos
+            render_queue.appendleft([render_map.RECT, themeing.BG_PTN, x, y, 28, display.row_h-2, 0])
+            render_queue.appendleft([render_map.RECT, ol, x, y, 30, display.row_h, 2])
+            offs = 7 if master_playhead_pos < 100 else 2
+            render_queue.appendleft([render_map.TEXT, "textbox_font", themeing.WHITE,
+                                     f"{master_playhead_pos:0>2}", x + offs, y+1, 0])
+
 
         self.update_row_number_view(pattern, render_queue)
         self.update_pattern_view(pattern, render_queue)

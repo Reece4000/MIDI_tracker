@@ -1,3 +1,4 @@
+import numpy as np
 import pygame
 import asyncio
 from threading import Lock
@@ -20,23 +21,6 @@ from src.ui_components.timeline_tracks import TimelinePage
 from src.ui_components.gui_elements import RowNumberCell
 
 
-# going for component based architecture with elements of MVC
-
-"""
-You could call this a "Hierarchical MVC with Component-Based Views" or a "Centralized Data Component Architecture." 
-The exact name isn't as important as understanding its key characteristics:
-
-Centralized data management
-Decentralized view state management
-Hierarchical structure
-Event-driven updates
-Separation of concerns between data, input handling, and view rendering
-
-This architecture seems well-suited for a music sequencer, as it allows for complex data management while providing 
-flexibility in how different parts of the UI are rendered and updated.
-"""
-
-
 class Tracker:
     def __init__(self, event_bus):
         self.event_bus = event_bus
@@ -45,9 +29,11 @@ class Tracker:
         self.renderer.initialise()
         self.input_handler = InputHandler(self)
         self.midi_handler = MidiHandler()
-        self.clock = Clock(bpm=constants.start_bpm, callback=self.tick)
+
         self._tick_mutex = Lock()
         self.ticks = 0
+        self.is_playing = False
+        self.clock = Clock(bpm=constants.start_bpm, callback=self.tick)
 
         self.track_count = constants.track_count
         self.timeline_length = constants.timeline_length
@@ -63,14 +49,14 @@ class Tracker:
         self.phrase_playhead = 0
         self.song_playhead = 0
 
-        self.is_playing = False
         self.follow_playhead = False
 
         self.mouse_x = 0
         self.mouse_y = 0
 
         self.octave_mod = 2
-        self.channel_ccs = [[i for i in range(1, 17)] for _ in range(16)]
+        # self.channel_ccs = [[i for i in range(1, 17)] for _ in range(16)]
+        self.channel_ccs = [[1, 3, 9, 14, 15, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30] for _ in range(16)]
 
         self.last_note = constants.start_note
         self.last_vel = constants.start_vel
@@ -81,14 +67,14 @@ class Tracker:
         self.last_cc = constants.start_cc
         self.last_cc_val = constants.start_cc_val
 
-        self.page = 3
+        self.page = PATTERN
         self.pages = {}
 
         self.page_border = None
         self.is_playing = False
         self.running = False
 
-        row_number_cells = [RowNumberCell(y) for y in range(display.visible_rows)]  # shared between pattern and master
+        row_number_cells = [RowNumberCell(y) for y in range(display.visible_rows)]
         self.info_pane = InfoPane(self)
 
         self.pages[TIMELINE] = TimelinePage(self)
@@ -96,15 +82,22 @@ class Tracker:
         self.pages[PATTERN] = PatternEditor(self, row_number_cells)
         self.pages[EDITOR] = EditorWindow(self)
 
+        self.initialise()
+
+    def initialise(self):
         # some ui components need to share state vars
         self.pages[MASTER].pattern_view = self.pages[PATTERN]
         self.pages[PATTERN].master_track_view = self.pages[MASTER]
 
         self.pages[TIMELINE].initialise_view()
         self.pages[TIMELINE].update_view()
-        for i, page in self.pages.items():
-            if i != PATTERN:
-                self.pages[PATTERN].toggle_active()
+
+        # initialise the page borders by turning on and off. Jank?
+        for page in {TIMELINE, MASTER}:
+            self.pages[page].toggle_active()
+            self.pages[page].toggle_active()
+
+        self.page_switch(None, None, PATTERN)
 
     @timing_decorator
     def update_view_states(self):
@@ -115,6 +108,29 @@ class Tracker:
         self.renderer.process_queue()
         self.renderer.update_screen()
 
+    def handle_events_non_async(self):
+        input_return = self.input_handler.check_for_events(current_time=perf_counter())
+        if input_return == "Exit":
+            self.running = False
+
+    def running_loop_non_async(self):
+        try:
+            self.running = True
+            render_interval = 1 / display.FPS
+            last_render_time = perf_counter()
+            while self.running:
+                self.handle_events_non_async()
+                curr_time = perf_counter()
+                elapsed = curr_time - last_render_time
+                if elapsed >= render_interval:
+                    self.update_view_states()
+                    last_render_time = curr_time
+                else:
+                    # use pygame wait instead of time.sleep to avoid blocking the event loop
+                    pygame.time.wait(int((render_interval - elapsed) * 1000))
+        finally:
+            self.quit(is_async=0)
+
     async def handle_events(self):
         input_return = self.input_handler.check_for_events(current_time=perf_counter())
         if input_return == "Exit":
@@ -124,23 +140,35 @@ class Tracker:
         self.running = True
         loop = asyncio.get_event_loop()
         while self.running:
-            try:
-                events_handled = loop.create_task(self.handle_events())
-                await loop.run_in_executor(None, self.update_view_states)
-                await events_handled
-            except Exception as e:
-                print(f"Error in running loop: {e}")
-                self.running = False
+            events_handled = loop.create_task(self.handle_events())
+            await loop.run_in_executor(None, self.update_view_states)
+            await events_handled
+        self.quit(is_async=1)
 
+    def quit(self, is_async):
         print("Cleaning up and exiting...")
-        self.quit()
-
-    def quit(self):
+        jitter = self.calculate_midi_jitter()
+        with open("jitter.csv", "a") as f:
+            f.write(f"{is_async},{jitter}\n")
         self.renderer.quit()
         self.clock.stop()
         self.midi_handler.all_notes_off()
         self.midi_handler.send_midi_stop()
         self.midi_handler.midi_out.close_port()
+
+    def calculate_midi_jitter(self):
+        pulse_timings = self.midi_handler.timings
+        pulses = sorted(pulse_timings.keys())
+
+        # Calculate the actual intervals between consecutive pulses
+        actual_intervals = [
+            pulse_timings[pulses[i + 1]] - pulse_timings[pulses[i]]
+            for i in range(len(pulses) - 1)
+        ]
+        avg_interval = np.mean(actual_intervals)
+        deviations = [interval - avg_interval for interval in actual_intervals]
+        jitter = np.std(deviations)
+        return jitter
 
     @timing_decorator
     def tick(self):
@@ -203,20 +231,22 @@ class Tracker:
         self.midi_handler.send_midi_stop()
         self.pages[TIMELINE].flag_state_change()
 
-    def start_playback(self):
+    def start_playback(self, from_pattern_start=True):
         print('\n########### Starting playback ###########\n')
-        for i, track in enumerate(self.get_playing_pattern().midi_tracks):
+
+        playing_pattern = self.get_playing_pattern()
+        for i, track in enumerate(playing_pattern.midi_tracks):
             track.is_reversed = False
 
         self.song_playhead, self.phrase_playhead = self.get_song_cursor(), self.get_phrase_cursor()
-
         self.update_pattern_parameters()
-        self.reset_track_playheads()
-        self.midi_handler.send_midi_start()
+
+        if from_pattern_start:
+            self.midi_handler.send_midi_start()
+            self.reset_track_playheads()
+
         self.is_playing = True
         self.pages[TIMELINE].flag_state_change()
-
-        print(self.get_playing_pattern().num)
 
     def toggle_playback(self):
         if self.is_playing:
@@ -231,14 +261,66 @@ class Tracker:
 
     def process_master_components(self):
         playing_pattern = self.get_playing_pattern()
-        master_components = playing_pattern.master_track.get_components()
+        master_step = playing_pattern.master_track.get_current_step()
+        if not master_step.has_data():
+            return
 
-        for component in master_components:
-            if component is not None:
-                if component[0] == 'REV':
-                    playing_pattern.reverse_tracks()
-                elif component[0] == 'SNC':
-                    playing_pattern.synchronise_playheads()
+        mapping = constants.master_component_mapping
+        for i in range(4):
+            component_key = master_step.components[i]
+            x_vals = master_step.component_x_vals[i]
+            y_vals = master_step.component_y_vals[i]
+            track_masks = master_step.component_track_masks[i]
+
+            if component_key not in mapping:
+                continue
+            if mapping[component_key]["name"] == "REVERSE":
+                playing_pattern.reverse_tracks(track_masks)
+
+            elif mapping[component_key]["name"] == "MASTER SYNC":
+                playing_pattern.synchronise_playheads(track_masks)
+
+            elif mapping[component_key]["name"] == "SPEED UP":
+                print("speed up, to be implemented")
+
+            elif mapping[component_key]["name"] == "SLOW DOWN":
+                print("slow down, to be implemented")
+
+            elif mapping[component_key]["name"] == "TRANSPOSE":
+                print("transpose, to be implemented")
+
+            elif mapping[component_key]["name"] == "STEP REPEAT":
+                print("step repeat, to be implemented")
+
+            elif mapping[component_key]["name"] == "STEP HOLD":
+                print("step hold, to be implemented")
+
+            elif mapping[component_key]["name"] == "JUMP TO":
+                print("jump to, to be implemented")
+
+            elif mapping[component_key]["name"] == "MUTE TRACKS":
+                print("mute tracks, to be implemented")
+
+            elif mapping[component_key]["name"] == "SOLO TRACKS":
+                print("solo tracks, to be implemented")
+
+            elif mapping[component_key]["name"] == "RANDOMISE":
+                print("randomise, to be implemented")
+
+            elif mapping[component_key]["name"] == "RAMP":
+                print("ramp, to be implemented")
+
+            elif mapping[component_key]["name"] == "RETRIGGER":
+                print("retrigger, to be implemented")
+
+            elif mapping[component_key]["name"] == "PROBABILITY":
+                print("probability, to be implemented")
+
+            elif mapping[component_key]["name"] == "SKIP":
+                print("skip, to be implemented")
+
+            elif mapping[component_key]["name"] == "CLEAR":
+                print("clear, to be implemented")
 
     def update_song_playhead(self):
         next_step = self.song_playhead + 1
@@ -270,8 +352,6 @@ class Tracker:
         else:
             self.update_song_playhead()  # Move to next song step if no more patterns in current phrase
 
-        self.update_pattern_parameters()
-
     def update_track_playheads(self):
         playing_pattern = self.get_playing_pattern()
         ticks = []
@@ -289,6 +369,7 @@ class Tracker:
             ticks.append(track.tick())
 
         if chk_components:
+            master = playing_pattern.master_track
             self.process_master_components()
 
         for i, tick in enumerate(ticks):
@@ -298,14 +379,13 @@ class Tracker:
 
     def reset_track_playheads(self):
         playing_pattern = self.get_playing_pattern()
-        tracks = playing_pattern.tracks
-        for track in tracks:
+        playing_pattern.master_track.reset()
+        for track in playing_pattern.midi_tracks:
             track.reset()
-        for track in tracks:
-            if track.is_master:
-                self.process_master_components()
-            else:
-                track.play_step()
+
+        self.process_master_components()
+        for track in playing_pattern.midi_tracks:
+            track.play_step()
 
     @timing_decorator
     def clone_pattern(self, pattern):
@@ -351,6 +431,12 @@ class Tracker:
         self.add_pattern_if_not_exists(new_val)
         return new_val
 
+    def get_selected_master_step(self):
+        selected_pattern = self.get_selected_pattern()
+        if selected_pattern is None:
+            return None
+
+        return selected_pattern.master_track.steps[self.pages[MASTER].cursor_y]
 
     def get_selected_step(self, track=None):
         if track is None:
@@ -366,10 +452,8 @@ class Tracker:
         selected_pattern = self.get_selected_pattern()
         if selected_pattern is None:
             return None
-        try:
-            return selected_pattern.midi_tracks[self.pages[PATTERN].cursor_x]
-        except IndexError:
-            return None
+
+        return selected_pattern.midi_tracks[self.pages[PATTERN].cursor_x]
 
     def handle_select(self):
         self.pages[self.page].handle_select()
@@ -380,14 +464,22 @@ class Tracker:
     def handle_insert(self):
         self.pages[self.page].handle_insert()
 
-    def handle_param_adjust(self, increment, axis=False):
+    def handle_param_adjust(self, value, alt=False):
         try:
-            self.pages[self.page].handle_param_adjust(increment, axis)
+            self.pages[self.page].handle_param_adjust(value, alt)
         except TypeError as e:
             import traceback
             traceback.print_exc()
             print(f"Error {e}: handle_param_adjust method not implemented for current page", self.page,
                   "Please implement this method in the current page class", "Page = ", self.pages[self.page])
+
+    def adjust_velocity(self, inc):
+        step = self.get_selected_step()
+        if step is not None:
+            for pos in range(4):
+                curr_vel = step.velocities[pos]
+                if curr_vel is not None:
+                    step.update_velocity(pos, min(max(0, curr_vel + inc), 127))
 
     def move_in_place(self, x, y):
         self.pages[self.page].move_in_place(x, y)
@@ -404,42 +496,58 @@ class Tracker:
     def handle_duplicate(self):
         self.pages[self.page].handle_duplicate()
 
+    def seek(self, xy, expand_selection=False):
+        x, y = xy
+        if self.page == EDITOR:
+            self.pages[self.page].seek(xy, expand_selection=True)
+        elif self.page == PATTERN or self.page == MASTER:
+            self.pages[self.page].move_cursor(x * 8, y * 8, expand_selection)
+
     def toggle_editor_window(self):
         if self.pages[EDITOR].active:
-            self.page_switch(page_num=PATTERN)
+            self.page_switch(None, None, page_num=self.pages[EDITOR].previous_page)
         else:
             self.pages[EDITOR].previous_page = self.page
-            self.page_switch(page_num=EDITOR)
+            self.page_switch(None, None, page_num=EDITOR)
 
     def toggle_timeline_view(self):
         if self.pages[TIMELINE].active:
-            self.page_switch(PATTERN)
+            self.page_switch(None, None, PATTERN)
         else:
             self.pages[TIMELINE].previous_page = self.page
-            self.page_switch(TIMELINE)
+            self.page_switch(None, None, TIMELINE)
 
-    def page_switch(self, page_num=None):
-        if page_num is None:
-            self.page = PATTERN if self.page == MASTER else MASTER  # (self.page + direction) % (len(self.pages) - 1)
-        else:
+    def page_switch(self, x, y, page_num=None):
+        if page_num is not None:
             self.page = page_num
+        else:
+            if y != 0 and self.page == EDITOR:
+                self.pages[EDITOR].open_page(page_index=None, increment=y)
+            elif y > 0:
+                if self.page == PATTERN or self.page == MASTER:
+                    self.pages[TIMELINE].previous_page = self.page
+                    self.page = TIMELINE
+                elif self.page == TIMELINE:
+                    self.pages[TIMELINE].move_cursor(0, y)
+            elif y < 0 and self.page == TIMELINE:
+                if self.pages[TIMELINE].cursor_y == 1:
+                    self.pages[TIMELINE].move_cursor(0, y)
+                else:
+                    self.page = self.pages[TIMELINE].previous_page
+            elif x > 0 and self.page == MASTER:
+                self.page = PATTERN
+                self.event_bus.publish(events.ON_PATTERN_TRACK)
+            elif x < 0 and self.page == PATTERN:
+                self.page = MASTER
+                self.event_bus.publish(events.ON_MASTER_TRACK)
+            elif x != 0 and self.page == TIMELINE:
+                self.pages[TIMELINE].move_cursor(x, 0)
 
         self.pages[PATTERN].update_y_anchor(self.page)
 
         for i, view in self.pages.items():
             if (i != self.page and view.active) or (i == self.page and not view.active):
                 view.toggle_active()
-
-        """
-        for i, page in self.pages.items():
-            print("tracker:", i, page.active)
-            if i == EDITOR:
-                for j, view in enumerate(page.pages):
-                    print("editor: ", j, view.active)
-            elif i == TIMELINE:
-                for j, view in enumerate(page.pages):
-                    print("timeline", j, view.active)
-        """
 
     def stop_preview(self):
         selected_pattern = self.get_selected_pattern()
@@ -459,7 +567,7 @@ class Tracker:
         for index in self.pages[PATTERN].selected_tracks:
             track = selected_pattern.midi_tracks[index]
             if not track.is_master:
-                track.handle_mute(send_note_offs=self.on_playing_pattern)
+                track.handle_mute(send_note_offs=self.on_playing_pattern())
 
     def preview_step(self, notes_only=False):
         if not self.is_playing:
@@ -474,32 +582,9 @@ class Tracker:
 
                 track.handle_notes(step.notes, step.velocities)
 
-    def add_master_component(self, step, data):
-        if data == 12:
-            step.add_component(["REV", "--", "--"])
-        elif data == 14:
-            step.add_component(["SNC", "--", "--"])
-
-    def keyboard_insert(self, data):
-        track = self.get_selected_track()
-        step = self.get_selected_step()
-
-        if track.is_master:
-            self.add_master_component(step, data)
-            return
-
-        note = data if data == -1 else data + (self.octave_mod * 12)
-        if self.page == EDITOR:
-            print("adding")
-            step.add_note(step, self.pages[EDITOR].cursor_y, note)
-        else:
-            self.pages[EDITOR].state_changed = True
-            for pos in range(4):
-                step.update_note(pos, note if pos == 0 else None)
-                step.update_velocity(pos, self.last_vel if pos == 0 else None)
-            self.last_note = note
-        self.preview_step()
-
+    def keyboard_insert(self, key):
+        print(self.page)
+        self.pages[self.page].keyboard_insert(key)
 
     def save_song(self):
         pass
@@ -530,35 +615,6 @@ class Tracker:
             self.save_song()
         self.reset()"""
 
-    # so we want to update the pattern step in the phrase track to the new pattern number
-    # then we want to update the current pattern to the new pattern number
-    def insert_pattern(self):
-        phrase_cursor = self.pages[TIMELINE].pages[TIMELINE_PHRASE].cursor_x
-        if phrase_cursor + 1 >= self.timeline_length:
-            return
-
-        # get next unused pattern number
-        for i in range(constants.max_patterns):
-            if i not in self.pattern_pool.keys():
-                while self.cursor_phrase[phrase_cursor] is not None:
-                    phrase_cursor += 1
-                self.adjust_phrase_step(phrase_cursor, i + 1)
-                self.pages[TIMELINE].pages[TIMELINE_PHRASE].cursor_x = phrase_cursor
-                break
-
-    def insert_phrase(self):
-        song_cursor = self.pages[TIMELINE].pages[TIMELINE_SONG].cursor_x
-        phrase_cursor = self.pages[TIMELINE].pages[TIMELINE_PHRASE].cursor_x
-        
-        if song_cursor + 1 >= self.timeline_length:
-                return
-        for i in range(self.timeline_length):
-            if i not in self.phrase_pool.keys():
-                while self.song[song_cursor] is not None:
-                    song_cursor += 1
-                self.adjust_song_step(song_cursor, i + 1)
-                break
-
     def jump_page(self, opt):
         pass
         """
@@ -576,21 +632,6 @@ class Tracker:
                     self.state.phrase_cursor["y"] -= 1
                     self.state.set_cursor_pattern(self.state.cursor_phrase[self.state.phrase_cursor["y"]])
         """
-
-    def master_seek(self):
-        print("master seek, to do")
-
-    def pattern_seek(self, opt, expand_selection):
-        pass
-
-    def song_seek(self):
-        print("Song seek, to do")
-
-    def phrase_seek(self):
-        print("Phrase seek, to do")
-
-    def seek(self, opt, expand_selection=False):
-        pass
 
     def adjust_length(self, increment):
         selected_pattern = self.get_selected_pattern()
@@ -672,4 +713,3 @@ class Tracker:
         if y_start is not False and y_end is not False:
             self.state.pattern_cursor["h"] = y_start - y_end
         """
-

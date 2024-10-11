@@ -83,7 +83,7 @@ class KeyHints:
     def __init__(self):
         self.x1 = display.pattern_area_width + display.timeline_width + 130
         self.x2 = self.x1 + 125
-        self.y = display.display_h - 87
+        self.y = display.display_h - 104
 
         self.current_items = None
 
@@ -94,8 +94,8 @@ class KeyHints:
         if items != self.current_items:
             self.current_items = items
             rect_y, rect_x = self.y - 16, self.x1 - 50
-            elems.append([RECT, themeing.BG_COLOR, rect_x + 1, rect_y, 247, 98, 0])
-            elems.append([RECT, themeing.BG_TASKPANE_HL, rect_x + 1, rect_y, 247, 98, 1])
+            # elems.append([RECT, themeing.BG_COLOR, rect_x + 1, rect_y, 247, 98, 0])
+            # elems.append([RECT, themeing.BG_TASKPANE_HL, rect_x + 1, rect_y, 247, 98, 1])
             # elems.append([RECT, themeing.BG_COLOR, rect_x + 1, rect_y + 106, 247, 49, 0])
             # elems.append([RECT, themeing.BG_TASKPANE_HL, rect_x + 1, rect_y + 106, 247, 49, 1])
 
@@ -272,7 +272,7 @@ class PatternCell(UiComponent):
                 for (text, color) in components:  # step_text
                     render_queue.appendleft([TEXT, "tracker_font", color, text, x + offset,
                                              y + display.cell_y_offset, 0])
-                    offset += 29
+                    offset = offset + 19 if track.is_master else offset + 29
 
             if tl or tr or bl or br:
                 self.draw_cell_cursor((tl, tr, bl, br), (x + 2, y + 1, w - 4, h - 5),
@@ -442,7 +442,7 @@ class RowNumberCell(UiComponent):
             render_queue.appendleft([RECT, bg, x, y, display.row_labels_w, display.row_h, 0])
             render_queue.appendleft([RECT, outline, x, y, display.row_labels_w, display.row_h, 2])
             if cell_text is not None:
-                offs = 5 if track_step_index < 100 else 1
+                offs = 6 if track_step_index < 100 else 1
                 render_queue.appendleft([TEXT, "tracker_row_label_font", text_color, cell_text, x + offs,
                                          y + display.cell_y_offset, 0])
             return 1

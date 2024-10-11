@@ -8,9 +8,16 @@ measured_times = defaultdict(list)
 R = TypeVar('R')
 
 
-def get_polygon_coords(x, y, w, h):
+def get_polygon_coords(x, y, w, h, opt=0):
     """ widths should be even numbers """
-    return tuple(((x, y), (x + w//2, y + h), (x + w, y)))
+    if opt == 0:  # down
+        return tuple(((x, y), (x + w//2, y + h), (x + w, y)))
+    elif opt == 1:  # up
+        return tuple(((x, y + h), (x + w//2, y), (x + w, y + h)))
+    elif opt == 2:  # left
+        return tuple(((x + w, y), (x, y + h//2), (x + w, y + h)))
+    elif opt == 3:  # right
+        return tuple(((x, y), (x + w, y + h//2), (x, y + h)))
 
 
 def get_increment(increment, val_type):
@@ -20,29 +27,22 @@ def get_increment(increment, val_type):
     return INCREMENTS[val_type][size] if increment > 0 else -INCREMENTS[val_type][size]
 
 
+def transpose_note(note, scale):
+    if note is None or note == -1:
+        return note
+
+    scale_degree = note % 12
+    if scale[scale_degree] == 1:
+        return note
+    else:
+        for i in range(1, 6):
+            if scale[(scale_degree + i) % 12] == 1 and note + i <= 127:
+                return note + i
+            elif scale[(scale_degree - i) % 12] == 1 and note - i >= 0:
+                return note - i
+
 def transpose_to_scale(notes, scale):
-    def transpose_note(note):
-        if note is None or note == -1:
-            return note
-
-        scale_degree = note % 12
-        if scale[scale_degree] == 1:
-            return note
-
-        upper_match = lower_match = 0
-        for i in range(1, 12):
-            if scale[(scale_degree + i) % 12] == 1:
-                upper_match = note + i
-                break
-        for i in range(1, 12):
-            if scale[(scale_degree - i) % 12] == 1:
-                lower_match = note - i
-                break
-
-        return upper_match if abs(upper_match - note) <= abs(lower_match - note) else lower_match
-
-    return [transpose_note(note) for note in notes]
-
+    return [transpose_note(note, scale) for note in notes]
 
 def timing_decorator(func):
     def wrapper(self, *args, **kwargs):

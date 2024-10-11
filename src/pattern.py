@@ -4,7 +4,11 @@ from config.scales import *
 import copy
 
 class Pattern:
-    def __init__(self, num, length, lpb, bpm, swing, tracker, master_track=None, midi_tracks=None):
+    __slots__ = ('num', 'length', 'lpb', 'bpm', 'swing', 'tracker', 'master_track',
+                 'midi_tracks', 'tracks', 'scale', 'transpose', 'loops')
+
+    def __init__(self, num, length, lpb, bpm, swing, tracker,
+                 master_track=None, midi_tracks=None):
         self.tracker = tracker
         self.num = num
         self.bpm = bpm
@@ -13,7 +17,7 @@ class Pattern:
         self.transpose = 0
         self.loops = 1
         if master_track is None:
-            self.master_track = MasterTrack(length, lpb, pattern=self)
+            self.master_track = MasterTrack(length, lpb//4, pattern=self)
         else:
             self.master_track = master_track
             self.master_track.pattern = self
@@ -52,21 +56,23 @@ class Pattern:
     def adjust_scale(self, increment: int) -> None:
         self.scale = min(20, max(0, self.scale + increment))
 
-    def synchronise_playheads(self):
+    def synchronise_playheads(self, track_mask):
         master_track_step_pos = self.master_track.get_step_pos()
-        for track in self.midi_tracks:
-            ticks = master_track_step_pos * (96 // track.lpb)
-            if track.is_reversed:
-                ticks += track.ticks_per_step
-            if ticks >= track.length_in_ticks:
-                ticks = 0
-            track.ticks = ticks
-            if track.get_current_tick() == 0:
-                track.play_step()
+        for i, track in enumerate(self.midi_tracks):
+            if track_mask[i]:
+                ticks = master_track_step_pos * (96 // track.lpb)
+                if track.is_reversed:
+                    ticks += track.ticks_per_step
+                if ticks >= track.length_in_ticks:
+                    ticks = 0
+                track.ticks = ticks
+                if track.get_current_tick() == 0:
+                    track.play_step()
 
-    def reverse_tracks(self):
-        for track in self.midi_tracks:
-            track.reverse()
+    def reverse_tracks(self, track_mask):
+        for i, track in enumerate(self.midi_tracks):
+            if track_mask[i]:
+                track.reverse()
 
     def json_serialize(self):
         pass

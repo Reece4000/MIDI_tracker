@@ -12,6 +12,8 @@ class InputHandler:
         self.mods = {
             "l1": False,
             "r1": False,
+            "l2": False,
+            "r2": False,
             "ctrl": False,
             "shift": False,
             "alt": False
@@ -24,12 +26,13 @@ class InputHandler:
         }
 
         self.joy_axis_state = {
-            v: {"Held": False, "Time Pressed": 0, "Repeating": False, "Last Value": None} for v in self.joy_axis_mapping.values()
+            v: {"Held": False, "Time Pressed": 0, "Repeating": False, "Last Value": 0} for v in self.joy_axis_mapping.values()
         }
 
         self.joy_repeat_start = 0.15
         self.joy_repeat_interval = 0.035
-        self.axis_repeat_interval = 0.08
+        self.axis_repeat_interval = 0.018
+        self.axis_deadzone = 0.1
         self.joystick = None
         pygame.joystick.init()
 
@@ -44,7 +47,7 @@ class InputHandler:
         self.final_mouse_pos = None
         self.tracker = tracker
 
-        self.note_mapping = {
+        self.keyboard_mapping = {
             pygame.K_z: 12, pygame.K_s: 13, pygame.K_x: 14, pygame.K_d: 15, pygame.K_c: 16,
             pygame.K_v: 17, pygame.K_g: 18, pygame.K_b: 19, pygame.K_h: 20, pygame.K_n: 21,
             pygame.K_j: 22, pygame.K_m: 23, pygame.K_q: 24, pygame.K_2: 25, pygame.K_w: 26,
@@ -124,14 +127,19 @@ class InputHandler:
         else:
             joy_l1 = joy_r1 = joy_r2 = joy_l2 = None
 
-        self.mods["l1"] = (mods & pygame.KMOD_LCTRL) or joy_l1
-        self.mods["r1"] = (mods & pygame.KMOD_LALT) or joy_r1
+        self.mods["shift"] = (mods & pygame.KMOD_SHIFT)
+        self.mods["l1"] = (mods & pygame.KMOD_LALT) or joy_l1
+        self.mods["r1"] = (mods & pygame.KMOD_LCTRL) or joy_r1
+        self.mods["l2"] = self.joy_axis_state[4]["Held"]
+        self.mods["r2"] = self.joy_axis_state[5]["Held"]
 
-        if (self.mods["r1"] and self.mods["l1"]) != self.tracker.pages[TIMELINE].active:
+        # if self.joy_axis_state[4]["Held"] != self.tracker.pages[TIMELINE].active:
+        """
+        if self.mods["l1"] != self.tracker.pages[TIMELINE].active:
             self.tracker.toggle_timeline_view()
-        elif not self.tracker.pages[TIMELINE].active and (self.mods["r1"] != self.tracker.pages[EDITOR].active):
+        elif self.mods["l2"] != self.tracker.pages[EDITOR].active:
             self.tracker.toggle_editor_window()
-
+        """
 
     def handle_save(self):
         self.tracker.save_song()
@@ -146,40 +154,49 @@ class InputHandler:
         self.tracker.handle_duplicate()
 
     def handle_tab(self):
-        self.tracker.page_switch(-1 if self.mods["shift"] else 1)
+        pass
+        # self.tracker.page_switch(-1 if self.mods["shift"] else 1)
 
     def handle_up(self, repeat_press=False):
-        if self.tracker.page == TIMELINE:
-            if self.joy_btn_state[0]["Held"] or self.select_held:
-                self.tracker.handle_param_adjust(10)
+        if self.mods["r1"] and self.mods["l1"]:
+            if self.tracker.page == EDITOR:
+                previous_page = self.tracker.pages[EDITOR].previous_page
+                self.tracker.pages[previous_page].move_cursor(0, -1)
             else:
-                self.tracker.move_cursor(x=0, y=-1, expand_selection=self.joy_btn_state[2]["Held"])
-        elif self.joy_btn_state[2]["Held"] and self.tracker.page == EDITOR:
-            if not repeat_press:
-                self.tracker.pages[EDITOR].open_page(page_index=None, increment=-1)
-        elif self.joy_btn_state[2]["Held"] and self.mods["l1"]:
+                self.tracker.pages[EDITOR].open_page(None, -1)
+        elif self.mods["r1"]:
+            self.tracker.page_switch(0, -1) # 0, -1)
+        elif self.mods["l1"] and self.joy_btn_state[0]["Held"]:
+            self.tracker.handle_param_adjust(10, alt=True)
+        elif (self.joy_btn_state[2]["Held"] or self.mods["shift"]) and self.mods["r2"]:
             self.tracker.move_in_place(0, -1)
+        elif self.mods["l1"]:
+            self.tracker.seek((0, -1), expand_selection=self.joy_btn_state[2]["Held"])
         elif self.joy_btn_state[0]["Held"] or self.select_held:
             self.tracker.handle_param_adjust(12)
         elif self.mods["ctrl"] and self.mods["shift"]:
-            self.tracker.seek("up", expand_selection=True)
+            self.tracker.seek("up", self.joy_btn_state[2]["Held"])
         elif self.mods["ctrl"]:
             self.tracker.jump_page('up')
             # self.tracker.seek("up", expand_selection=False)
         else:  # self.mods["shift"]:
-            self.tracker.move_cursor(x=0, y=-1, expand_selection=self.joy_btn_state[2]["Held"])
+            self.tracker.move_cursor(x=0, y=-1, expand_selection=self.joy_btn_state[2]["Held"] or self.mods["shift"])
 
     def handle_down(self, repeat_press=False):
-        if self.tracker.page == TIMELINE:
-            if self.joy_btn_state[0]["Held"] or self.select_held:
-                self.tracker.handle_param_adjust(-10)
+        if self.mods["r1"] and self.mods["l1"]:
+            if self.tracker.page == EDITOR:
+                self.tracker.pages[EDITOR].move_alt_cursor(0, 1)
             else:
-                self.tracker.move_cursor(x=0, y=1, expand_selection=self.joy_btn_state[2]["Held"])
-        elif self.joy_btn_state[2]["Held"] and self.tracker.page == EDITOR:
-            if not repeat_press:
-                self.tracker.pages[EDITOR].open_page(page_index=None, increment=1)
-        elif self.joy_btn_state[2]["Held"] and self.mods["l1"]:
+                self.tracker.pages[EDITOR].open_page(None, 1)
+        elif self.mods["r1"]:
+            self.tracker.page_switch(0, 1)
+            # self.tracker.page_switch(0, 1)
+        elif self.mods["l1"] and self.joy_btn_state[0]["Held"]:
+            self.tracker.handle_param_adjust(-10, alt=True)
+        elif (self.joy_btn_state[2]["Held"] or self.mods["shift"]) and self.mods["r2"]:
             self.tracker.move_in_place(x=0, y=1)
+        elif self.mods["l1"]:
+            self.tracker.seek((0, 1), expand_selection=self.joy_btn_state[2]["Held"])
         elif self.joy_btn_state[0]["Held"] or self.select_held:
             self.tracker.handle_param_adjust(-12)
         elif self.mods["ctrl"] and self.mods["shift"]:
@@ -188,19 +205,22 @@ class InputHandler:
             self.tracker.jump_page('down')
             # self.tracker.seek("down", expand_selection=False)
         else:  # self.mods["shift"]:
-            self.tracker.move_cursor(x=0, y=1, expand_selection=self.joy_btn_state[2]["Held"])
+            self.tracker.move_cursor(x=0, y=1, expand_selection=self.joy_btn_state[2]["Held"] or self.mods["shift"])
 
     def handle_left(self, repeat_press=False):
-        if self.tracker.page == TIMELINE:
-            if self.joy_btn_state[0]["Held"] or self.select_held:
-                self.tracker.handle_param_adjust(-1)
-            else:
-                self.tracker.move_cursor(x=-1, y=0, expand_selection=self.joy_btn_state[2]["Held"])
-        elif self.mods["l1"] and self.joy_btn_state[2]["Held"]:
+        if self.mods["r1"] and self.mods["l1"]:
+            if self.tracker.page == EDITOR:
+                previous_page = self.tracker.pages[EDITOR].previous_page
+                self.tracker.pages[previous_page].move_cursor(-1, 0)
+        elif self.mods["r1"]:
+            self.tracker.page_switch(-1, 0)
+            # self.tracker.page_switch(-1, 0)
+        elif self.mods["l1"] and self.joy_btn_state[0]["Held"]:
+            self.tracker.handle_param_adjust(-1, alt=True)
+        elif self.mods["r2"] and (self.joy_btn_state[2]["Held"] or self.mods["shift"]):
             self.tracker.move_in_place(x=-1, y=0)
         elif self.mods["l1"]:
-            if not repeat_press:
-                self.tracker.page_switch()
+            self.tracker.seek((-1, 0), expand_selection=self.joy_btn_state[2]["Held"])
         elif self.joy_btn_state[0]["Held"] or self.select_held:
             self.tracker.handle_param_adjust(-1)
         elif self.mods["ctrl"] and self.mods["shift"]:
@@ -208,26 +228,29 @@ class InputHandler:
         elif self.mods["ctrl"]:
             self.tracker.move_cursor(x=-constants.track_count + 1, y=0, expand_selection=False)
         else:
-            self.tracker.move_cursor(x=-1, y=0, expand_selection=self.joy_btn_state[2]["Held"])
+            self.tracker.move_cursor(x=-1, y=0, expand_selection=self.joy_btn_state[2]["Held"] or self.mods["shift"])
 
     def handle_right(self, repeat_press=False):
-        if self.tracker.page == TIMELINE:
-            if self.joy_btn_state[0]["Held"] or self.select_held:
-                self.tracker.handle_param_adjust(1)
-            else:
-                self.tracker.move_cursor(x=1, y=0, expand_selection=self.joy_btn_state[2]["Held"])
-        elif self.mods["l1"] and self.joy_btn_state[2]["Held"]:
+        if self.mods["r1"] and self.mods["l1"]:
+            if self.tracker.page == EDITOR:
+                previous_page = self.tracker.pages[EDITOR].previous_page
+                self.tracker.pages[previous_page].move_cursor(1, 0)
+        elif self.mods["r1"]:
+            self.tracker.page_switch(1, 0)
+            # self.tracker.page_switch(1, 0)
+        elif self.mods["l1"] and self.joy_btn_state[0]["Held"]:
+            self.tracker.handle_param_adjust(1, alt=True)
+        elif self.mods["r2"] and (self.joy_btn_state[2]["Held"] or self.mods["shift"]):
             self.tracker.move_in_place(x=1, y=0)
-        elif self.mods["l1"]: # and self.mods["r1"]:
-            if not repeat_press:
-                self.tracker.page_switch()
+        elif self.mods["l1"]:
+            self.tracker.seek((1, 0), expand_selection=self.joy_btn_state[2]["Held"])
         elif self.joy_btn_state[0]["Held"] or self.select_held:
             self.tracker.handle_param_adjust(1)
             return
         elif self.mods["ctrl"] and self.mods["shift"]:
             self.tracker.seek("right", expand_selection=True)
         else:  # self.mods["shift"]:
-            self.tracker.move_cursor(x=1, y=0, expand_selection=self.joy_btn_state[2]["Held"])
+            self.tracker.move_cursor(x=1, y=0, expand_selection=self.joy_btn_state[2]["Held"] or self.mods["shift"])
 
     def handle_kp_plus(self):
         if self.mods["ctrl"]:
@@ -255,8 +278,7 @@ class InputHandler:
 
     def handle_home(self):
         if self.tracker.page == 2:
-            sel_track = self.tracker.cursor_pattern.tracks[self.tracker.pattern_cursor_x]
-            y = -sel_track.length
+            y = -self.tracker.get_selected_track().length
         else:
             y = -self.tracker.timeline_length
 
@@ -264,8 +286,7 @@ class InputHandler:
 
     def handle_end(self):
         if self.tracker.page == 2:
-            sel_track = self.tracker.cursor_pattern.tracks[self.tracker.pattern_cursor_x]
-            y = sel_track.length
+            y = self.tracker.get_selected_track().length
         else:
             y = self.tracker.timeline_length
 
@@ -286,14 +307,17 @@ class InputHandler:
         self.tracker.toggle_playback()
 
     def handle_select_press(self):
-        self.tracker.handle_select()
+        if self.mods["r1"]:
+            self.tracker.toggle_editor_window()
+        else:
+            self.tracker.handle_select()
 
     def handle_keys(self, key):
         if key == pygame.K_F11:
             self.tracker.event_bus.publish(events.FULLSCREEN)
             return
         if key == pygame.K_ESCAPE:
-            self.tracker.event_bus.publish(events.QUIT)
+            self.tracker.running = False
         if key == pygame.K_f:
             self.select_held = True
             self.handle_select_press()
@@ -334,8 +358,8 @@ class InputHandler:
             self.tracker.toggle_mute()
         elif key in key_action_mapping:
             key_action_mapping[key]()
-        elif key in self.note_mapping and self.tracker.page == PATTERN:
-            self.tracker.keyboard_insert(self.note_mapping[key])
+        elif key in self.keyboard_mapping:
+            self.tracker.keyboard_insert(self.keyboard_mapping[key])
 
     def joystick_functions(self, button, repeat_press=False):
         if button == self.joy_btn_mapping["Down"]:
@@ -354,34 +378,30 @@ class InputHandler:
             if not repeat_press:
                 self.tracker.toggle_editor_window()
 
+        elif button == self.joy_btn_mapping["Select"]:
+            if not repeat_press:
+                self.tracker.toggle_timeline_view()
+
+        elif button == self.joy_btn_mapping["Square"]:
+            pass
+
         elif button == self.joy_btn_mapping["Triangle"]:
-            if self.mods["l1"] and self.mods["r1"]:
-                self.tracker.handle_copy()
-            elif self.mods["l1"]:
+            if self.mods["r1"]:
                 self.tracker.handle_copy()
             else:
                 if not repeat_press:
                     self.handle_play_pause()
 
         elif button == self.joy_btn_mapping["Circle"]:
-            if self.mods["l1"] and self.mods["r1"]:
+            if self.mods["r1"]:
                 self.tracker.handle_paste()
-            elif self.mods["l1"]:
-                self.tracker.handle_paste()
-                # self.tracker.handle_delete(remove_steps=True)
             else:
                 if not repeat_press:
                     self.tracker.handle_delete(remove_steps=False)
 
         elif button == self.joy_btn_mapping["Cross"]:
-            if self.mods["l1"] and self.mods["r1"]:
+            if not self.joy_btn_state[0]["Held"]:
                 self.handle_select_press()
-            elif self.mods["l1"]:  # L1
-                # self.tracker.insert()
-                pass
-            else:
-                if not self.joy_btn_state[0]["Held"]:
-                    self.handle_select_press()
 
     def handle_joy_repeat(self, time):
         if self.joystick is None:
@@ -397,17 +417,17 @@ class InputHandler:
                 elif state["Repeating"] and (time - time_pressed) > self.joy_repeat_interval:
                     self.joystick_functions(button, repeat_press=True)
                     state["Time Pressed"] = time
-
+        """
         for axis, state in self.joy_axis_state.items():
-            if state["Held"]:
-                # print(button, state)
-                start_time = state["Time Pressed"]
-                if (time - start_time) > self.axis_repeat_interval:
-                    if axis == 5 and self.joy_btn_state[0]["Held"]:
-                        self.tracker.handle_param_adjust(1, axis=True)
-                    elif axis == 4 and self.joy_btn_state[0]["Held"]:
-                        self.tracker.handle_param_adjust(-1, axis=True)
+            if axis == 0:
+                if state["Held"] and (time - state["Time Pressed"]) > self.axis_repeat_interval:
+                    value = state["Last Value"]
+                    if abs(value) > self.axis_deadzone:
+                        # Calculate increment based on axis value
+                        inc = int(value*3)  # Adjust multiplier for sensitivity
+                        self.tracker.handle_param_adjust(inc, axis=True)
                     state["Time Pressed"] = time
+        """
 
     def handle_joystick_event(self, event, time):
         if event.type == pygame.JOYBUTTONDOWN:
@@ -423,27 +443,13 @@ class InputHandler:
                 self.tracker.stop_preview()
 
         elif event.type == pygame.JOYAXISMOTION:
-            if event.axis in [4, 5]:
-                # Determine increment based on event value
-                inc = 1  # Default value if no match is found
-                for threshold in controller.axis_repeat_mapping.keys():
-                    if event.value >= threshold:
-                        self.axis_repeat_interval = controller.axis_repeat_mapping[threshold]
-                    else:
-                        break
+            self.joy_axis_state[event.axis] = {
+                "Last Value": event.value,
+                "Held": event.value > 0,
+                "Time Pressed": time if abs(event.value) > self.axis_deadzone else 0
+            }
 
-                # Handle axis movement and state
-                if not self.joy_axis_state[event.axis]["Held"]:
-                    if self.joy_btn_state[0]["Held"]:
-                        self.tracker.handle_param_adjust(-inc if event.axis == 4 else inc, axis=True)
 
-                if event.value < -1:
-                    if self.joy_axis_state[event.axis]["Held"]:
-                        self.tracker.preview_step()
-                    self.joy_axis_state[event.axis]["Held"] = False
-                    self.joy_axis_state[event.axis]["Time Pressed"] = 0
 
-                else:
-                    if not self.joy_axis_state[event.axis]["Held"]:
-                        self.joy_axis_state[event.axis]["Held"] = True
-                        self.joy_axis_state[event.axis]["Time Pressed"] = time
+
+

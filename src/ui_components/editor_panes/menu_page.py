@@ -14,7 +14,7 @@ class MenuPage:
         self.y = y + 4
         self.y_actual = y
         self.w = 249
-        self.h_closed = 35
+        self.h_closed = 36
         self.h_open = 495
         self.h_actual = self.h_closed
         self.y_offset = 0
@@ -32,7 +32,7 @@ class MenuPage:
 
     def draw_bg(self):
         if self.image is not None:
-            bg = [IMAGE, self.image, self.x, self.y_actual, 0]
+            bg = [IMAGE, self.image, self.x, self.y_actual + self.h_closed, 0]
             self.tracker.renderer.render_queue.appendleft(bg)
 
     def check_redraw(self, render_queue):
@@ -49,15 +49,16 @@ class MenuPage:
         self.to_render = {k: [] for k in self.to_render.keys()}
 
     def update_view(self, tracker, editor_active):
-        title_bg = self.title_bg_selected if self.active else self.title_bg_unselected
         if self.active and editor_active:
-            title_color = outline_color = themeing.CURSOR_COLOR
+            title_bg = themeing.CURSOR_COLOR
+            title_color, outline_color = themeing.BLACK, themeing.CURSOR_COLOR
         else:
+            title_bg = self.title_bg_selected if self.active else self.title_bg_unselected
             title_color, outline_color = themeing.WHITE, themeing.DARK
 
         self.to_render[100] = [[RECT, title_bg, self.x + 1, self.y_actual, self.w - 2, self.h_closed, 0],
                                [TEXT, "textbox_font", title_color, self.title, self.x + 6, self.y_actual + 8, 0],
-                               [RECT, outline_color, self.x, self.y_actual, self.w, self.h_actual, 1]]
+                               [RECT, outline_color, self.x, self.y_actual, self.w, self.h_actual, 2]]
 
     def move_cursor(self, x, y):
         pass
