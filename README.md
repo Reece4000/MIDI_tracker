@@ -2,7 +2,8 @@
 
 A tracker style sequencer inspired by Teenage Engineering's OP-Z and the Dirtywave M8. The sequencer aims to prioritise fun and experimentation, while allowing for fast composition and editing.
 
-![image](https://github.com/user-attachments/assets/1843ccdc-4aca-4d12-bbee-784fa4eeb33d)
+![image](https://github.com/user-attachments/assets/7e0140f2-c54e-446c-8762-79c7c1915c73)
+
 
 
 This is a sequencer only; it does not create sound. A loopback MIDI device such as Tobias Erichsen's **LoopMIDI** is required in order to send MIDI data to an external source https://www.tobias-erichsen.de/software/loopmidi.html
