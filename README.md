@@ -2,7 +2,8 @@
 
 A tracker style sequencer inspired by Teenage Engineering's OP-Z and the Dirtywave M8. The sequencer aims to prioritise fun and experimentation, while allowing for fast composition and editing.
 
-![image](https://github.com/user-attachments/assets/7e0140f2-c54e-446c-8762-79c7c1915c73)
+![image](https://github.com/user-attachments/assets/c61750b9-9ff8-4368-9e22-e10dfe72fd95)
+
 
 
 
